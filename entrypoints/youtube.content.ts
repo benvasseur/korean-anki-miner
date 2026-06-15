@@ -1,8 +1,13 @@
+import { createApp } from 'vue';
+import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { ContentScriptContext } from 'wxt/utils/content-script-context';
+import CaptionOverlay from '../overlay/CaptionOverlay.vue';
+import { captionText } from '../overlay/caption-store';
 
 const LOG = '[korean-anki-miner]';
 const PLAYER_SELECTOR = '#movie_player';
 const CAPTION_SEGMENT_SELECTOR = '.ytp-caption-segment';
+const NATIVE_CAPTION_SELECTOR = '.ytp-caption-window-container';
 
 /** Read the current caption text from the rendered YouTube caption DOM. */
 function readCaption(root: ParentNode): string {
@@ -54,7 +59,7 @@ async function watchCaptions(
   const flush = () => {
     scheduled = false;
     const text = readCaption(player);
-    if (text && text !== last) {
+    if (text !== last) {
       last = text;
       onChange(text);
     }
@@ -74,27 +79,63 @@ async function watchCaptions(
   return () => observer.disconnect();
 }
 
+/** Hide YouTube's own caption text so our interactive overlay is the only one shown. */
+function hideNativeCaptions(ctx: ContentScriptContext) {
+  const style = document.createElement('style');
+  style.textContent = `${NATIVE_CAPTION_SELECTOR} { opacity: 0 !important; }`;
+  document.head.appendChild(style);
+  ctx.onInvalidated(() => style.remove());
+}
+
 export default defineContentScript({
   matches: ['*://*.youtube.com/watch*'],
-  main(ctx) {
+  cssInjectionMode: 'ui',
+  async main(ctx) {
     console.log(LOG, 'content script loaded on', location.href);
 
+    hideNativeCaptions(ctx);
+
+    // Mount the overlay in a Shadow DOM so YouTube's CSS and ours stay isolated.
+    const ui = await createShadowRootUi(ctx, {
+      name: 'kam-overlay',
+      position: 'inline',
+      anchor: PLAYER_SELECTOR,
+      append: 'last',
+      // WXT resets the host with `:host { all: initial !important }`, which would
+      // clobber inline host styles. Declaring the host styles here (same
+      // selector, sourced after the reset, also !important) makes them win, so
+      // the host becomes a full-player layer that stacks above YouTube's chrome.
+      css: `:host {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 60 !important;
+        pointer-events: none !important;
+      }`,
+      onMount: (container) => {
+        const app = createApp(CaptionOverlay);
+        app.mount(container);
+        return app;
+      },
+      onRemove: (app) => app?.unmount(),
+    });
+    ui.autoMount(); // mount now, and re-mount if YouTube swaps the player element
+
     let stop: (() => void) | undefined;
-    const init = async () => {
+    const startWatching = async () => {
       stop?.();
+      captionText.value = '';
       stop = await watchCaptions(ctx, (text) => {
-        console.log(LOG, 'caption:', text);
+        captionText.value = text;
       });
     };
 
-    init();
+    startWatching();
 
-    // YouTube is a SPA — it does not reload between videos, so the watcher would
-    // die silently on the next video without re-init. `yt-navigate-finish` fires
-    // once the new watch page's data is ready.
+    // YouTube is a SPA — re-establish the caption watcher when navigating between
+    // videos; the overlay itself is kept mounted by ui.autoMount().
     const onNavigate = () => {
       console.log(LOG, 'yt-navigate-finish →', location.href);
-      init();
+      startWatching();
     };
     window.addEventListener('yt-navigate-finish', onNavigate);
     ctx.onInvalidated(() => window.removeEventListener('yt-navigate-finish', onNavigate));
