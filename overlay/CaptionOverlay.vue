@@ -44,7 +44,7 @@ function onWordClick(word: string) {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.2em 0.5em; /* row gap / column gap between words */
+  gap: 0.15em 0.35em; /* row gap / column gap between words */
   margin: 0;
   max-width: 92%;
   padding: 0.15em 0.6em;
