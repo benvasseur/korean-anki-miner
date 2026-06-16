@@ -5,5 +5,6 @@ export default defineConfig({
   manifest: {
     name: 'Korean Anki Miner',
     description: 'Mine Korean vocabulary from YouTube subtitles into Anki.',
+    permissions: ['storage'],
   },
 });
