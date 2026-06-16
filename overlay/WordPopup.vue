@@ -1,13 +1,19 @@
 <script setup lang="ts">
 // Positioning (left/top) is supplied by the parent as a fallthrough `style`;
 // this component owns its appearance and the upward offset + arrow.
-defineProps<{ word: string; translation: string }>();
+defineProps<{
+  word: string;
+  state: 'loading' | 'done' | 'error';
+  text: string;
+}>();
 </script>
 
 <template>
   <div class="kam-popup" role="dialog">
     <div class="kam-popup__word">{{ word }}</div>
-    <div class="kam-popup__translation">{{ translation }}</div>
+    <div v-if="state === 'loading'" class="kam-popup__muted">Translating…</div>
+    <div v-else-if="state === 'error'" class="kam-popup__error">{{ text }}</div>
+    <div v-else class="kam-popup__translation">{{ text }}</div>
     <div class="kam-popup__arrow" aria-hidden="true"></div>
   </div>
 </template>
@@ -42,6 +48,20 @@ defineProps<{ word: string; translation: string }>();
   font-size: 15px;
   line-height: 1.3;
   color: #cdd3df;
+}
+
+.kam-popup__muted {
+  margin-top: 3px;
+  font-size: 13px;
+  color: #9aa1b1;
+  font-style: italic;
+}
+
+.kam-popup__error {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #ffb4a6;
 }
 
 .kam-popup__arrow {

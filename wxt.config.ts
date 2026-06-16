@@ -6,5 +6,6 @@ export default defineConfig({
     name: 'Korean Anki Miner',
     description: 'Mine Korean vocabulary from YouTube subtitles into Anki.',
     permissions: ['storage'],
+    host_permissions: ['https://papago.apigw.ntruss.com/*'],
   },
 });

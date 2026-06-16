@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { captionText } from './caption-store';
+import { requestTranslation } from '../translation/messages';
 import WordPopup from './WordPopup.vue';
-
-// Placeholder until Papago is wired behind TranslationProvider (build step 5).
-const HARDCODED_TRANSLATION = '— translation —';
 
 // A run of letters/numbers is a clickable word; everything else (quotes, commas,
 // ellipses…) is rendered but inert. \p{L}\p{N}\p{M} keeps Hangul (and combining
@@ -32,12 +30,20 @@ const tokens = computed<Segment[][]>(() =>
 
 const rootEl = ref<HTMLElement | null>(null);
 const selected = ref<{ ti: number; si: number; word: string; left: number; top: number } | null>(null);
+const result = reactive<{ state: 'loading' | 'done' | 'error'; text: string }>({
+  state: 'loading',
+  text: '',
+});
+
+// Bumped on every click/dismiss so a slow translation that resolves after the
+// user has moved on is ignored rather than shown against the wrong word.
+let requestId = 0;
 
 function isActive(ti: number, si: number): boolean {
   return selected.value?.ti === ti && selected.value?.si === si;
 }
 
-function onWordClick(ti: number, si: number, word: string, event: MouseEvent) {
+async function onWordClick(ti: number, si: number, word: string, event: MouseEvent) {
   const root = rootEl.value;
   if (!root) return;
   // Position the popup relative to the overlay root (its positioned ancestor),
@@ -51,10 +57,25 @@ function onWordClick(ti: number, si: number, word: string, event: MouseEvent) {
     left: wordRect.left - rootRect.left + wordRect.width / 2,
     top: wordRect.top - rootRect.top,
   };
+
+  const id = ++requestId;
+  result.state = 'loading';
+  result.text = '';
+  // The service worker owns the network + cache; we just ask and render.
+  const response = await requestTranslation(word);
+  if (id !== requestId) return; // superseded by a newer click/dismiss
+  if (response.ok) {
+    result.state = 'done';
+    result.text = response.translation;
+  } else {
+    result.state = 'error';
+    result.text = response.error;
+  }
 }
 
 function dismiss() {
   selected.value = null;
+  requestId++; // invalidate any in-flight translation
 }
 
 // Drop the popup when the underlying caption line changes — the word is gone.
@@ -114,7 +135,8 @@ onBeforeUnmount(() => {
     <WordPopup
       v-if="selected"
       :word="selected.word"
-      :translation="HARDCODED_TRANSLATION"
+      :state="result.state"
+      :text="result.text"
       :style="{ left: `${selected.left}px`, top: `${selected.top}px` }"
     />
   </div>
