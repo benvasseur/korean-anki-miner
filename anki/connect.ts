@@ -32,3 +32,14 @@ export const deckNames = () => invoke<string[]>('deckNames');
 export const modelNames = () => invoke<string[]>('modelNames');
 export const modelFieldNames = (modelName: string) =>
   invoke<string[]>('modelFieldNames', { modelName });
+
+export interface AnkiNote {
+  deckName: string;
+  modelName: string;
+  fields: Record<string, string>;
+  tags?: string[];
+}
+
+/** Creates a note; rejects (via invoke) on a duplicate or when Anki is down. */
+export const addNote = (note: AnkiNote) =>
+  invoke<number>('addNote', { note: { ...note, options: { allowDuplicate: false } } });

@@ -101,6 +101,9 @@ export default defineContentScript({
       position: 'inline',
       anchor: PLAYER_SELECTOR,
       append: 'last',
+      // Stop key events from bubbling out to YouTube while typing in the card
+      // editor, so space/k/j/l/digits don't trigger player shortcuts.
+      isolateEvents: true,
       // WXT resets the host with `:host { all: initial !important }`, which would
       // clobber inline host styles. Declaring the host styles here (same
       // selector, sourced after the reset, also !important) makes them win, so

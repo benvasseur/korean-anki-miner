@@ -1,9 +1,17 @@
 import { browser } from 'wxt/browser';
 
-/** Options page → service worker: read AnkiConnect resources for the dropdowns. */
+/** Card role values, mapped to the configured note-type fields in the worker. */
+export interface NoteValues {
+  front: string;
+  back: string;
+  extra: string;
+}
+
+/** Options page / content script → service worker. */
 export type AnkiMessage =
   | { type: 'anki:resources' }
-  | { type: 'anki:fields'; model: string };
+  | { type: 'anki:fields'; model: string }
+  | { type: 'anki:addNote'; values: NoteValues };
 
 export type AnkiResourcesResponse =
   | { ok: true; decks: string[]; models: string[] }
@@ -12,6 +20,15 @@ export type AnkiResourcesResponse =
 export type AnkiFieldsResponse =
   | { ok: true; fields: string[] }
   | { ok: false; error: string };
+
+export type AddNoteResponse =
+  | { ok: true; noteId: number }
+  | { ok: false; code: 'not-configured' | 'request-failed'; error: string };
+
+/** Message the worker to open the options page (content scripts can't directly). */
+export interface OpenOptionsMessage {
+  type: 'open-options';
+}
 
 /** Decks + note types in one round trip, for the deck/model selects. */
 export function fetchAnkiResources(): Promise<AnkiResourcesResponse> {
@@ -26,6 +43,26 @@ export function fetchAnkiFields(model: string): Promise<AnkiFieldsResponse> {
     type: 'anki:fields',
     model,
   } satisfies AnkiMessage) as Promise<AnkiFieldsResponse>;
+}
+
+/** Create a note from the role values; the worker maps roles to fields. */
+export function saveNote(values: NoteValues): Promise<AddNoteResponse> {
+  return browser.runtime.sendMessage({
+    type: 'anki:addNote',
+    values,
+  } satisfies AnkiMessage) as Promise<AddNoteResponse>;
+}
+
+export function openOptions(): void {
+  void browser.runtime.sendMessage({ type: 'open-options' } satisfies OpenOptionsMessage);
+}
+
+export function isOpenOptionsMessage(message: unknown): message is OpenOptionsMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    (message as { type?: unknown }).type === 'open-options'
+  );
 }
 
 export function isAnkiMessage(message: unknown): message is AnkiMessage {

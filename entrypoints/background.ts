@@ -1,12 +1,15 @@
 import { browser } from 'wxt/browser';
-import { deckNames, modelFieldNames, modelNames } from '../anki/connect';
+import { addNote, deckNames, modelFieldNames, modelNames } from '../anki/connect';
 import {
   isAnkiMessage,
+  isOpenOptionsMessage,
+  type AddNoteResponse,
   type AnkiFieldsResponse,
   type AnkiMessage,
   type AnkiResourcesResponse,
+  type NoteValues,
 } from '../anki/messages';
-import { languagePair, papagoClientId, papagoClientSecret } from '../config';
+import { ankiConfig, languagePair, papagoClientId, papagoClientSecret } from '../config';
 import { getCachedTranslation, setCachedTranslation } from '../translation/cache';
 import { isTranslateMessage, type TranslateResponse } from '../translation/messages';
 import { PapagoProvider } from '../translation/papago';
@@ -24,13 +27,19 @@ export default defineBackground(() => {
     if (isAnkiMessage(message)) {
       return handleAnki(message);
     }
+    if (isOpenOptionsMessage(message)) {
+      return browser.runtime.openOptionsPage();
+    }
     return undefined;
   });
 });
 
 async function handleAnki(
   message: AnkiMessage,
-): Promise<AnkiResourcesResponse | AnkiFieldsResponse> {
+): Promise<AnkiResourcesResponse | AnkiFieldsResponse | AddNoteResponse> {
+  if (message.type === 'anki:addNote') {
+    return handleAddNote(message.values);
+  }
   try {
     if (message.type === 'anki:resources') {
       const [decks, models] = await Promise.all([deckNames(), modelNames()]);
@@ -39,6 +48,43 @@ async function handleAnki(
     return { ok: true, fields: await modelFieldNames(message.model) };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'AnkiConnect request failed.' };
+  }
+}
+
+async function handleAddNote(values: NoteValues): Promise<AddNoteResponse> {
+  const { deck, model, fields } = await ankiConfig.getValue();
+  if (!deck || !model || !fields.front || !fields.back) {
+    return {
+      ok: false,
+      code: 'not-configured',
+      error: 'Set up your Anki deck and field mapping in the extension options.',
+    };
+  }
+
+  // Map our roles to the configured note-type field names. Extra is only
+  // included when mapped; Image is handled in a later step.
+  const noteFields: Record<string, string> = {
+    [fields.front]: values.front,
+    [fields.back]: values.back,
+  };
+  if (fields.extra) {
+    noteFields[fields.extra] = values.extra;
+  }
+
+  try {
+    const noteId = await addNote({
+      deckName: deck,
+      modelName: model,
+      fields: noteFields,
+      tags: ['korean-anki-miner'],
+    });
+    return { ok: true, noteId };
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'request-failed',
+      error: error instanceof Error ? error.message : 'Could not add the note.',
+    };
   }
 }
 

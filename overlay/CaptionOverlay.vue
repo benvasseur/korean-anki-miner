@@ -2,6 +2,9 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { captionText } from './caption-store';
 import { requestTranslation } from '../translation/messages';
+import { openOptions, saveNote } from '../anki/messages';
+import { ankiConfig, type AnkiConfig } from '../config';
+import CardPreview from './CardPreview.vue';
 import WordPopup from './WordPopup.vue';
 
 // A run of letters/numbers is a clickable word; everything else (quotes, commas,
@@ -16,9 +19,6 @@ interface Segment {
   word: boolean;
 }
 
-// Korean tokens are whitespace-delimited. A clicked word is the surface form
-// (stem + particle, e.g. 학교에서), not the dictionary form — the lemma is
-// resolved later on save (build step 7).
 const tokens = computed<Segment[][]>(() =>
   captionText.value
     .split(/\s+/)
@@ -29,15 +29,38 @@ const tokens = computed<Segment[][]>(() =>
 );
 
 const rootEl = ref<HTMLElement | null>(null);
-const selected = ref<{ ti: number; si: number; word: string; left: number; top: number } | null>(null);
+const selected = ref<{
+  ti: number;
+  si: number;
+  word: string;
+  sentence: string;
+  left: number;
+  top: number;
+} | null>(null);
 const result = reactive<{ state: 'loading' | 'done' | 'error'; text: string }>({
   state: 'loading',
   text: '',
 });
 
-// Bumped on every click/dismiss so a slow translation that resolves after the
-// user has moved on is ignored rather than shown against the wrong word.
+const mode = ref<'translation' | 'preview'>('translation');
+const card = reactive({ front: '', back: '', extra: '' });
+const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
+const saveError = ref('');
+
+// Anki config drives the UI (show the save button? show the Extra field?). Kept
+// live so configuring Anki in Options reflects without reloading the video tab.
+const anki = reactive({ configured: false, extraMapped: false });
+let unwatchAnki: (() => void) | undefined;
+
+function applyAnkiConfig(cfg: AnkiConfig) {
+  anki.configured = Boolean(cfg.deck && cfg.model && cfg.fields.front && cfg.fields.back);
+  anki.extraMapped = Boolean(cfg.fields.extra);
+}
+
+// Bumped on every click/dismiss / new save so a slow async reply that resolves
+// after the user has moved on is ignored.
 let requestId = 0;
+let saveId = 0;
 
 function isActive(ti: number, si: number): boolean {
   return selected.value?.ti === ti && selected.value?.si === si;
@@ -54,14 +77,18 @@ async function onWordClick(ti: number, si: number, word: string, event: MouseEve
     ti,
     si,
     word,
+    sentence: captionText.value, // snapshot now; the line is stable while editing
     left: wordRect.left - rootRect.left + wordRect.width / 2,
     top: wordRect.top - rootRect.top,
   };
+  mode.value = 'translation';
+  saveState.value = 'idle';
+  saveError.value = '';
+  saveId++;
 
   const id = ++requestId;
   result.state = 'loading';
   result.text = '';
-  // The service worker owns the network + cache; we just ask and render.
   const response = await requestTranslation(word);
   if (id !== requestId) return; // superseded by a newer click/dismiss
   if (response.ok) {
@@ -75,11 +102,49 @@ async function onWordClick(ti: number, si: number, word: string, event: MouseEve
 
 function dismiss() {
   selected.value = null;
-  requestId++; // invalidate any in-flight translation
+  mode.value = 'translation';
+  requestId++;
+  saveId++;
 }
 
-// Drop the popup when the underlying caption line changes — the word is gone.
-watch(captionText, dismiss);
+function openPreview() {
+  if (!selected.value || result.state !== 'done') return;
+  card.front = selected.value.word;
+  card.back = result.text;
+  card.extra = selected.value.sentence;
+  saveState.value = 'idle';
+  saveError.value = '';
+  mode.value = 'preview';
+}
+
+function cancelPreview() {
+  mode.value = 'translation';
+  saveState.value = 'idle';
+  saveError.value = '';
+}
+
+async function onSave(draft: { front: string; back: string; extra: string }) {
+  saveState.value = 'saving';
+  saveError.value = '';
+  const id = ++saveId;
+  const res = await saveNote(draft);
+  if (id !== saveId) return; // superseded
+  if (res.ok) {
+    saveState.value = 'saved';
+    window.setTimeout(() => {
+      if (id === saveId) dismiss();
+    }, 900);
+  } else {
+    saveState.value = 'error';
+    saveError.value = res.error;
+  }
+}
+
+// Drop the popup when the caption line changes — but only in translation mode,
+// so editing the preview isn't interrupted while the video keeps playing.
+watch(captionText, () => {
+  if (mode.value === 'translation') dismiss();
+});
 
 function onDocPointerDown(event: Event) {
   if (!selected.value) return;
@@ -92,27 +157,28 @@ function onDocPointerDown(event: Event) {
 }
 
 function onKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && selected.value) {
-    dismiss();
-    // Don't let YouTube also act on Escape (e.g. exit fullscreen).
-    event.stopPropagation();
-    event.preventDefault();
-  }
+  if (event.key !== 'Escape' || !selected.value) return;
+  // Esc backs out of the preview first, then closes the popup.
+  if (mode.value === 'preview') cancelPreview();
+  else dismiss();
+  event.stopPropagation();
+  event.preventDefault();
 }
 
-// Word positions shift on resize/fullscreen; simplest correct behaviour is to
-// dismiss rather than render a stale popup.
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('pointerdown', onDocPointerDown, true);
   document.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('resize', dismiss);
   document.addEventListener('fullscreenchange', dismiss);
+  applyAnkiConfig(await ankiConfig.getValue());
+  unwatchAnki = ankiConfig.watch(applyAnkiConfig);
 });
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true);
   document.removeEventListener('keydown', onKeyDown, true);
   window.removeEventListener('resize', dismiss);
   document.removeEventListener('fullscreenchange', dismiss);
+  unwatchAnki?.();
 });
 </script>
 
@@ -132,13 +198,35 @@ onBeforeUnmount(() => {
         </template>
       </span>
     </p>
-    <WordPopup
+
+    <div
       v-if="selected"
-      :word="selected.word"
-      :state="result.state"
-      :text="result.text"
+      class="kam-popup"
+      :class="{ 'kam-popup--wide': mode === 'preview' }"
       :style="{ left: `${selected.left}px`, top: `${selected.top}px` }"
-    />
+    >
+      <WordPopup
+        v-if="mode === 'translation'"
+        :word="selected.word"
+        :state="result.state"
+        :text="result.text"
+        :configured="anki.configured"
+        @save-to-anki="openPreview"
+        @open-options="openOptions"
+      />
+      <CardPreview
+        v-else
+        :front="card.front"
+        :back="card.back"
+        :extra="card.extra"
+        :show-extra="anki.extraMapped"
+        :save-state="saveState"
+        :error="saveError"
+        @save="onSave"
+        @cancel="cancelPreview"
+      />
+      <div class="kam-popup__arrow" aria-hidden="true"></div>
+    </div>
   </div>
 </template>
 
@@ -195,5 +283,38 @@ onBeforeUnmount(() => {
 
 .kam-punct {
   white-space: pre; /* preserve any internal spacing within a punctuation run */
+}
+
+/* Shared anchored shell for the translation view and the card preview. */
+.kam-popup {
+  position: absolute;
+  /* left/top (from JS) point at the top-center of the clicked word; lift the
+     popup above it and center it horizontally. */
+  transform: translate(-50%, calc(-100% - 10px));
+  box-sizing: border-box;
+  min-width: 96px;
+  max-width: 280px;
+  padding: 10px 12px;
+  background: #1f2430;
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  font-family: 'YouTube Noto', Roboto, Arial, sans-serif;
+  pointer-events: auto;
+}
+
+.kam-popup--wide {
+  max-width: 320px;
+}
+
+.kam-popup__arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 11px;
+  height: 11px;
+  background: #1f2430;
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 2px;
 }
 </style>
