@@ -45,8 +45,14 @@ Two providers on two different paths:
 2. Read the current caption from the DOM; handle SPA navigation (`yt-navigate-finish`).
 3. Render the overlay in a Shadow DOM; each word a clickable `<span>`.
 4. Click → popup with a hardcoded translation. Nail positioning + dismissal.
-5. Wire Papago behind `TranslationProvider`; add the local cache.
-6. Options page: pull `deckNames` / `modelFieldNames` from AnkiConnect to populate dropdowns; persist config.
+5. Wire Papago behind `TranslationProvider`; add the local translation cache. Network lives in the service
+   worker, reached from the content script via `chrome.runtime` messaging.
+6. Options page + config (keys in `chrome.storage.local`, prefs in `chrome.storage.sync`):
+   - **6a.** Papago credentials + language pair, via a shared config module. Built ahead of step 5 so the
+     click path reads real keys instead of console-poked values.
+   - **6b.** AnkiConnect dropdowns: pull `deckNames` / `modelNames` / `modelFieldNames`; persist the
+     deck/note-type/field mapping. Needs the AnkiConnect adapter + `host_permissions`; only testable with
+     Anki running, so it lands next to the save step.
 7. `addNote` on the save button; map fields per config; auto-fill example with the subtitle line.
 8. Polish: duplicate handling, "Anki not running" state, loading/success feedback, editable preview before send.
 
