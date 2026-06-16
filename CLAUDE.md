@@ -6,8 +6,9 @@ Personal tool, single user. WHY: existing tools (Migaku, Language Reactor) lock 
 see a word's meaning, click, save to Anki — behind subscriptions and feature bloat. This does only
 that loop, and does it well.
 
-Core loop: overlay YouTube captions → click a word → popup shows the translation → an optional
-button sends a card to Anki (Korean word / translation / example sentence).
+Core loop: overlay YouTube captions → click a word → popup shows the translation → a Save button
+opens an editable preview and sends a note to Anki (Front = word, Back = translation, Extra =
+subtitle sentence; the Image field and Claude enrichment come later).
 
 ## Stack
 - WXT (https://wxt.dev) as the extension framework — MV3, HMR, manifest handling, first-class Vue support.
@@ -28,9 +29,10 @@ Two providers on two different paths:
 - **Translation (click path)** — Papago (Naver Cloud Platform). Fires on nearly every word, so it is
   optimized for latency and cost. Papago's free personal tier (~10k chars/day) is effectively free at
   single-word volume and is best-in-class for Korean. Returns translated text only (no lemma).
-- **Enrichment (save path)** — Claude API. Fires only when the user saves a card. One structured-JSON
-  call returns the dictionary form (lemma) + an example sentence (+ reading/POS if wanted), using the
-  full subtitle line for in-context disambiguation. The translation field reuses the cached Papago result.
+- **Enrichment (Enrich button)** — Claude API. Fires only on demand, when the user clicks "Enrich" in
+  the card preview — NOT on every save (deliberate: free by default, the call stays rare). One
+  structured-JSON call expands the Extra field into the dictionary form (lemma) + explanation, reusing
+  the subtitle line as the in-context example. Back/translation stays the cached Papago result.
 - Both sit behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`) so either can
   be swapped without touching callers.
 
@@ -53,8 +55,11 @@ Two providers on two different paths:
    - **6b.** AnkiConnect dropdowns: pull `deckNames` / `modelNames` / `modelFieldNames`; persist the
      deck/note-type/field mapping. Needs the AnkiConnect adapter + `host_permissions`; only testable with
      Anki running, so it lands next to the save step.
-7. `addNote` on the save button; map fields per config; auto-fill example with the subtitle line.
-8. Polish: duplicate handling, "Anki not running" state, loading/success feedback, editable preview before send.
+7. Save button in the popup → editable card preview → `addNote`. Roles map to the configured fields:
+   Front = clicked word, Back = translation, Extra = subtitle line. Tag notes `korean-anki-miner`.
+8. Polish + deferred features: nicer duplicate handling (`canAddNotes` + "add anyway"), popup
+   edge-clamping; then the Image field (capture a frame → `storeMediaFile`) and the Claude "Enrich"
+   button behind `EnrichmentProvider`.
 
 ## Gotchas / hard constraints
 - **SPA navigation** — YouTube does not reload between videos. Re-init on `yt-navigate-finish` or the
@@ -69,8 +74,9 @@ Two providers on two different paths:
   the content script. Set AnkiConnect's `webCorsOriginList` to include the extension origin
   (`chrome-extension://<id>`). Actions used: `deckNames`, `modelNames`, `modelFieldNames`, `addNote`.
 - **Korean segmentation** — clicking a space-delimited token yields stem+particle (학교에서 = 학교 + 에서),
-  not the lemma. v1: save the token, show Claude's dictionary form on save, make the field editable
-  before it commits. Do not block v1 on a morphological analyzer.
+  not the lemma. v1: prefill the surface token into the editable preview so the user can fix it to the
+  dictionary form before saving; Claude can resolve the lemma on demand (Enrich). Do not block v1 on a
+  morphological analyzer.
 - **Translation caching** — cache by surface form in `chrome.storage.local`. High-frequency words and
   particles repeat constantly; caching makes repeats instant at zero quota.
 
