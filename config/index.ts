@@ -29,6 +29,25 @@ export const languagePair = storage.defineItem<LanguagePair>('sync:languagePair'
   fallback: { source: 'ko', target: 'en' },
 });
 
+// --- Anki / AnkiConnect — synced preference --------------------------------
+/** Maps our card roles to a note type's field names. '' means unmapped. */
+export interface AnkiFieldMap {
+  front: string; // required: Korean word (clicked surface form)
+  back: string; // required: Papago translation
+  extra: string; // optional: subtitle sentence now, Claude explanation later
+  image: string; // optional: video screenshot (implemented later)
+}
+
+export interface AnkiConfig {
+  deck: string;
+  model: string; // note type
+  fields: AnkiFieldMap;
+}
+
+export const ankiConfig = storage.defineItem<AnkiConfig>('sync:ankiConfig', {
+  fallback: { deck: '', model: '', fields: { front: '', back: '', extra: '', image: '' } },
+});
+
 /** Papago-supported languages, narrowed to a useful subset for the dropdowns. */
 export const LANGUAGES: ReadonlyArray<{ code: string; label: string }> = [
   { code: 'ko', label: 'Korean' },

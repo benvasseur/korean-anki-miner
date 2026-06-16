@@ -2,40 +2,115 @@
 import { onMounted, reactive, ref } from 'vue';
 import {
   LANGUAGES,
+  ankiConfig,
   languagePair,
   papagoClientId,
   papagoClientSecret,
+  type AnkiFieldMap,
 } from '../../config';
+import { fetchAnkiFields, fetchAnkiResources } from '../../anki/messages';
+
+const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; required: boolean }> = [
+  { key: 'front', label: 'Front — Korean word', required: true },
+  { key: 'back', label: 'Back — translation', required: true },
+  { key: 'extra', label: 'Extra — sentence / explanation', required: false },
+  { key: 'image', label: 'Image — screenshot', required: false },
+];
 
 const form = reactive({
   clientId: '',
   clientSecret: '',
   source: 'ko',
   target: 'en',
+  deck: '',
+  model: '',
+  fields: { front: '', back: '', extra: '', image: '' } as AnkiFieldMap,
 });
 
 const loaded = ref(false);
 const status = ref<'idle' | 'saved'>('idle');
+const validationError = ref('');
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
+const anki = reactive<{
+  state: 'loading' | 'ready' | 'error';
+  error: string;
+  decks: string[];
+  models: string[];
+  fields: string[];
+}>({ state: 'loading', error: '', decks: [], models: [], fields: [] });
+
 onMounted(async () => {
-  const [id, secret, pair] = await Promise.all([
+  const [id, secret, pair, ac] = await Promise.all([
     papagoClientId.getValue(),
     papagoClientSecret.getValue(),
     languagePair.getValue(),
+    ankiConfig.getValue(),
   ]);
   form.clientId = id;
   form.clientSecret = secret;
   form.source = pair.source;
   form.target = pair.target;
+  form.deck = ac.deck;
+  form.model = ac.model;
+  form.fields = { ...ac.fields };
   loaded.value = true;
+  await loadResources();
 });
 
+async function loadResources() {
+  anki.state = 'loading';
+  anki.error = '';
+  const res = await fetchAnkiResources();
+  if (!res.ok) {
+    anki.state = 'error';
+    anki.error = res.error;
+    return;
+  }
+  anki.decks = res.decks;
+  anki.models = res.models;
+  anki.state = 'ready';
+  if (form.model) await loadFields(form.model);
+}
+
+async function loadFields(model: string) {
+  if (!model) {
+    anki.fields = [];
+    return;
+  }
+  const res = await fetchAnkiFields(model);
+  if (!res.ok) {
+    anki.state = 'error';
+    anki.error = res.error;
+    return;
+  }
+  anki.fields = res.fields;
+  // Drop mappings the newly selected note type doesn't have.
+  for (const role of FIELD_ROLES) {
+    if (form.fields[role.key] && !anki.fields.includes(form.fields[role.key])) {
+      form.fields[role.key] = '';
+    }
+  }
+}
+
 async function save() {
+  validationError.value = '';
+
+  // Saving Papago-only is fine. But once any Anki choice is made, require a
+  // usable mapping: a deck, a note type, and at least Front + Back.
+  const ankiTouched =
+    form.deck || form.model || Object.values(form.fields).some(Boolean);
+  if (ankiTouched && (!form.deck || !form.model || !form.fields.front || !form.fields.back)) {
+    validationError.value =
+      'For Anki, choose a deck and note type and map at least Front and Back.';
+    return;
+  }
+
   await Promise.all([
     papagoClientId.setValue(form.clientId.trim()),
     papagoClientSecret.setValue(form.clientSecret.trim()),
     languagePair.setValue({ source: form.source, target: form.target }),
+    ankiConfig.setValue({ deck: form.deck, model: form.model, fields: { ...form.fields } }),
   ]);
   status.value = 'saved';
   clearTimeout(statusTimer);
@@ -103,9 +178,62 @@ async function save() {
           </div>
         </section>
 
+        <section>
+          <h2>Anki</h2>
+          <p class="hint">
+            Cards are saved through the AnkiConnect add-on — Anki must be running.
+          </p>
+
+          <p v-if="anki.state === 'loading'" class="hint">Connecting to Anki…</p>
+
+          <div v-else-if="anki.state === 'error'" class="anki-error">
+            <p>{{ anki.error }}</p>
+            <button type="button" class="secondary" @click="loadResources">Reload</button>
+          </div>
+
+          <template v-else>
+            <div class="row">
+              <label class="field">
+                <span>Deck</span>
+                <select v-model="form.deck">
+                  <option value="">— select —</option>
+                  <option v-for="d in anki.decks" :key="d" :value="d">{{ d }}</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Note type</span>
+                <select
+                  v-model="form.model"
+                  @change="loadFields(($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="">— select —</option>
+                  <option v-for="m in anki.models" :key="m" :value="m">{{ m }}</option>
+                </select>
+              </label>
+            </div>
+
+            <p v-if="!form.model" class="hint">Pick a note type to map its fields.</p>
+            <template v-else>
+              <label v-for="role in FIELD_ROLES" :key="role.key" class="field">
+                <span>{{ role.label }}<span v-if="role.required" class="req">*</span></span>
+                <select v-model="form.fields[role.key]">
+                  <option value="">{{ role.required ? '— select —' : '— none —' }}</option>
+                  <option v-for="f in anki.fields" :key="f" :value="f">{{ f }}</option>
+                </select>
+              </label>
+            </template>
+
+            <button type="button" class="secondary reload" @click="loadResources">
+              Reload from Anki
+            </button>
+          </template>
+        </section>
+
         <div class="actions">
           <button type="submit">Save</button>
           <span v-if="status === 'saved'" class="saved" role="status">Saved ✓</span>
+          <span v-if="validationError" class="error-msg" role="alert">{{ validationError }}</span>
         </div>
       </fieldset>
     </form>
@@ -140,6 +268,9 @@ fieldset {
   margin: 0;
   padding: 0;
   border: 0;
+  /* Fieldsets default to min-width: min-content, which a long <select> option
+     would stretch past the card; reset so it tracks the container width. */
+  min-width: 0;
 }
 
 fieldset:disabled {
@@ -167,12 +298,20 @@ h2 {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 14px;
+  min-width: 0; /* allow flex children (e.g. in .row) to shrink instead of overflow */
   font-size: 13px;
   font-weight: 600;
 }
 
+.req {
+  color: #d9534f;
+  margin-left: 2px;
+}
+
 .field input,
 .field select {
+  width: 100%;
+  min-width: 0;
   font: inherit;
   font-weight: 400;
   padding: 9px 11px;
@@ -210,6 +349,17 @@ h2 {
   flex: 1;
 }
 
+.anki-error {
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #c0392b;
+}
+
+.anki-error p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -232,8 +382,28 @@ button:hover {
   background: #3b7fcc;
 }
 
+.secondary {
+  background: #6b7280;
+}
+
+.secondary:hover {
+  background: #5b626f;
+}
+
+.reload {
+  margin-top: 4px;
+  padding: 7px 16px;
+  font-size: 13px;
+}
+
 .saved {
   color: #2e9e5b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.error-msg {
+  color: #d9534f;
   font-size: 13px;
   font-weight: 600;
 }
@@ -248,6 +418,9 @@ button:hover {
     background-color: #15171c;
     border-color: #3a3f4b;
     color: #e7e9ee;
+  }
+  .anki-error {
+    color: #ff8a7a;
   }
 }
 </style>
