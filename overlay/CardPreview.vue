@@ -1,6 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { requestEnrichment } from '../enrichment/messages';
+
+// The Extra field is model-generated HTML; allow only basic inline formatting
+// and strip every attribute, so an injected onerror/onclick can't run when we
+// render it with v-html.
+const ALLOWED_TAGS = new Set(['b', 'i', 'u', 'strong', 'em', 'br']);
+function sanitizeHtml(html: string): string {
+  return html.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, (_match, rawName: string) => {
+    const name = rawName.toLowerCase();
+    if (!ALLOWED_TAGS.has(name)) return ''; // drop the tag, keep any text
+    return _match.startsWith('</') ? `</${name}>` : `<${name}>`; // drop attributes
+  });
+}
 
 // Mounted fresh when entering preview mode, so initialising the editable draft
 // from the prefill props (once) is correct.
@@ -31,6 +43,17 @@ const canSave = computed(() => front.value.trim() !== '' && back.value.trim() !=
 const busy = computed(
   () => props.saveState === 'saving' || props.saveState === 'saved' || enrichState.value === 'loading',
 );
+
+// Extra renders as formatted HTML by default; click to edit the raw source.
+const editingExtra = ref(false);
+const extraInput = ref<HTMLTextAreaElement | null>(null);
+const renderedExtra = computed(() => sanitizeHtml(extra.value));
+
+function startEditExtra() {
+  if (busy.value || editingExtra.value) return;
+  editingExtra.value = true;
+  void nextTick(() => extraInput.value?.focus());
+}
 
 async function onEnrich() {
   if (busy.value) return;
@@ -72,10 +95,28 @@ function onSave() {
       <input v-model="back" type="text" :disabled="busy" spellcheck="false" />
     </label>
 
-    <label v-if="showExtra" class="kam-field">
+    <div v-if="showExtra" class="kam-field">
       <span>Extra</span>
-      <textarea v-model="extra" rows="10" :disabled="busy"></textarea>
-    </label>
+      <textarea
+        v-if="editingExtra"
+        ref="extraInput"
+        v-model="extra"
+        rows="10"
+        :disabled="busy"
+        @blur="editingExtra = false"
+      ></textarea>
+      <div
+        v-else
+        class="kam-extra"
+        role="textbox"
+        tabindex="0"
+        @click="startEditExtra"
+        @focus="startEditExtra"
+      >
+        <span v-if="!extra.trim()" class="kam-extra__placeholder">(empty — click to add)</span>
+        <div v-else v-html="renderedExtra"></div>
+      </div>
+    </div>
 
     <button
       type="button"
@@ -145,6 +186,36 @@ function onSave() {
   outline: 2px solid #4a90e2;
   outline-offset: 0;
   border-color: transparent;
+}
+
+/* Rendered (read) view of the Extra HTML — styled like the inputs, scrollable. */
+.kam-extra {
+  box-sizing: border-box;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1px solid #3a4150;
+  border-radius: 6px;
+  background: #2a3040;
+  color: #fff;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.45;
+  cursor: text;
+}
+
+.kam-extra:hover {
+  border-color: #4a5266;
+}
+
+.kam-extra:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+.kam-extra__placeholder {
+  color: #6b7280;
 }
 
 .kam-enrich {
