@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { captionText } from './caption-store';
 import { requestTranslation } from '../translation/messages';
 import { openOptions, saveNote } from '../anki/messages';
@@ -29,6 +29,7 @@ const tokens = computed<Segment[][]>(() =>
 );
 
 const rootEl = ref<HTMLElement | null>(null);
+const popupEl = ref<HTMLElement | null>(null);
 const selected = ref<{
   ti: number;
   si: number;
@@ -57,6 +58,77 @@ function applyAnkiConfig(cfg: AnkiConfig) {
   anki.extraMapped = Boolean(cfg.fields.extra);
 }
 
+// --- Popup placement -------------------------------------------------------
+// Centre the popup on the word, then clamp it inside the player and flip below
+// when there isn't room above. The arrow keeps pointing at the word.
+const popupStyle = reactive<{ left: string; top: string; visibility: 'hidden' | 'visible' }>({
+  left: '0px',
+  top: '0px',
+  visibility: 'hidden',
+});
+const arrowStyle = reactive<{ left: string }>({ left: '50%' });
+const showArrow = ref(true);
+const POPUP_MARGIN = 8;
+const POPUP_GAP = 10;
+const ARROW_MARGIN = 14;
+
+function positionPopup() {
+  const sel = selected.value;
+  const root = rootEl.value;
+  const popup = popupEl.value;
+  if (!sel || !root || !popup) return;
+
+  // The shadow host (inset:0 over #movie_player) gives the player bounds.
+  const host = (root.getRootNode() as ShadowRoot).host as HTMLElement | null;
+  const bounds = (host ?? root).getBoundingClientRect();
+  const rootRect = root.getBoundingClientRect();
+  const pw = popup.offsetWidth;
+  const ph = popup.offsetHeight;
+
+  const wordCenterX = rootRect.left + sel.left;
+  const wordTopY = rootRect.top + sel.top;
+
+  // Horizontal: clamp the centred popup inside [margin, player − margin].
+  const minLeft = bounds.left + POPUP_MARGIN;
+  const maxLeft = bounds.right - POPUP_MARGIN - pw;
+  let leftVp = wordCenterX - pw / 2;
+  leftVp = maxLeft >= minLeft ? Math.min(Math.max(leftVp, minLeft), maxLeft) : minLeft;
+
+  // Vertical: prefer above the word, but clamp to stay inside the player so it
+  // never spills into YouTube's page UI (which would occlude it). On a small
+  // player it may overlap the video — still fully visible above it (z-index 60).
+  const minTop = bounds.top + POPUP_MARGIN;
+  const maxTop = bounds.bottom - POPUP_MARGIN - ph;
+  let topVp = Math.max(wordTopY - POPUP_GAP - ph, minTop);
+  if (maxTop >= minTop) topVp = Math.min(topVp, maxTop);
+
+  const arrowX = Math.min(Math.max(wordCenterX - leftVp, ARROW_MARGIN), pw - ARROW_MARGIN);
+
+  popupStyle.left = `${Math.round(leftVp - rootRect.left)}px`;
+  popupStyle.top = `${Math.round(topVp - rootRect.top)}px`;
+  popupStyle.visibility = 'visible';
+  arrowStyle.left = `${Math.round(arrowX)}px`;
+  // Only show the arrow when the popup sits cleanly above the word.
+  showArrow.value = topVp + ph <= wordTopY + 1;
+}
+
+// Reposition whenever the popup resizes (translation→preview, text length,
+// textarea drag) and whenever a new word is selected.
+let resizeObserver: ResizeObserver | undefined;
+watch(popupEl, (el) => {
+  resizeObserver?.disconnect();
+  if (el) {
+    resizeObserver = new ResizeObserver(() => positionPopup());
+    resizeObserver.observe(el);
+  }
+});
+watch(selected, async (sel) => {
+  if (!sel) return;
+  popupStyle.visibility = 'hidden'; // avoid a flash at the previous spot
+  await nextTick();
+  positionPopup();
+});
+
 // Bumped on every click/dismiss / new save so a slow async reply that resolves
 // after the user has moved on is ignored.
 let requestId = 0;
@@ -69,8 +141,8 @@ function isActive(ti: number, si: number): boolean {
 async function onWordClick(ti: number, si: number, word: string, event: MouseEvent) {
   const root = rootEl.value;
   if (!root) return;
-  // Position the popup relative to the overlay root (its positioned ancestor),
-  // so the maths is independent of scroll, fullscreen, and any page transforms.
+  // Position relative to the overlay root (its positioned ancestor), so the
+  // maths is independent of scroll, fullscreen, and any page transforms.
   const wordRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
   const rootRect = root.getBoundingClientRect();
   selected.value = {
@@ -178,6 +250,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeyDown, true);
   window.removeEventListener('resize', dismiss);
   document.removeEventListener('fullscreenchange', dismiss);
+  resizeObserver?.disconnect();
   unwatchAnki?.();
 });
 </script>
@@ -201,9 +274,10 @@ onBeforeUnmount(() => {
 
     <div
       v-if="selected"
+      ref="popupEl"
       class="kam-popup"
       :class="{ 'kam-popup--wide': mode === 'preview' }"
-      :style="{ left: `${selected.left}px`, top: `${selected.top}px` }"
+      :style="popupStyle"
     >
       <WordPopup
         v-if="mode === 'translation'"
@@ -225,7 +299,12 @@ onBeforeUnmount(() => {
         @save="onSave"
         @cancel="cancelPreview"
       />
-      <div class="kam-popup__arrow" aria-hidden="true"></div>
+      <div
+        v-if="showArrow"
+        class="kam-popup__arrow"
+        :style="arrowStyle"
+        aria-hidden="true"
+      ></div>
     </div>
   </div>
 </template>
@@ -285,12 +364,10 @@ onBeforeUnmount(() => {
   white-space: pre; /* preserve any internal spacing within a punctuation run */
 }
 
-/* Shared anchored shell for the translation view and the card preview. */
+/* Shared anchored shell for the translation view and the card preview. JS sets
+   the exact top-left (clamped), so there's no centering transform here. */
 .kam-popup {
   position: absolute;
-  /* left/top (from JS) point at the top-center of the clicked word; lift the
-     popup above it and center it horizontally. */
-  transform: translate(-50%, calc(-100% - 10px));
   box-sizing: border-box;
   min-width: 96px;
   max-width: 280px;
@@ -304,13 +381,15 @@ onBeforeUnmount(() => {
 }
 
 .kam-popup--wide {
-  max-width: 320px;
+  /* Roomy for editing + the longer Claude-enriched Extra; ~double the previous
+     width, capped to the viewport. */
+  width: 600px;
+  max-width: 90vw;
 }
 
 .kam-popup__arrow {
   position: absolute;
-  left: 50%;
-  bottom: -5px;
+  bottom: -5px; /* popup sits above the word; the arrow points down to it */
   width: 11px;
   height: 11px;
   background: #1f2430;

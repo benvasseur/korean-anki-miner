@@ -48,7 +48,7 @@ function onSave() {
 
     <label v-if="showExtra" class="kam-field">
       <span>Extra</span>
-      <textarea v-model="extra" rows="2" :disabled="busy"></textarea>
+      <textarea v-model="extra" rows="10" :disabled="busy"></textarea>
     </label>
 
     <div v-if="saveState === 'error'" class="kam-preview__error">{{ error }}</div>
@@ -57,15 +57,17 @@ function onSave() {
       <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="$emit('cancel')">
         Cancel
       </button>
-      <span v-if="saveState === 'saved'" class="kam-preview__saved">Saved ✓</span>
-      <button
-        type="button"
-        class="kam-btn kam-btn--primary"
-        :disabled="!canSave || busy"
-        @click="onSave"
-      >
-        {{ saveState === 'saving' ? 'Saving…' : 'Save' }}
-      </button>
+      <div class="kam-preview__save">
+        <span v-if="saveState === 'saved'" class="kam-preview__saved">Saved ✓</span>
+        <button
+          type="button"
+          class="kam-btn kam-btn--primary"
+          :disabled="!canSave || busy"
+          @click="onSave"
+        >
+          {{ saveState === 'saving' ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -124,9 +126,13 @@ function onSave() {
   margin-top: 4px;
 }
 
+.kam-preview__save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .kam-preview__saved {
-  flex: 1;
-  text-align: center;
   font-size: 13px;
   font-weight: 600;
   color: #6ee7a0;
