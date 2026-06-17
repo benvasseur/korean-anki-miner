@@ -8,7 +8,8 @@ that loop, and does it well.
 
 Core loop: overlay YouTube captions → click a word → popup shows the translation → a Save button
 opens an editable preview and sends a note to Anki (Front = word, Back = translation, Extra =
-subtitle sentence; the Image field and Claude enrichment come later).
+subtitle sentence). An optional "Enrich with AI" button (Claude) fills the dictionary form, a refined
+gloss, and an HTML explanation. The Image field comes later.
 
 ## Stack
 - WXT (https://wxt.dev) as the extension framework — MV3, HMR, manifest handling, first-class Vue support.
@@ -29,10 +30,11 @@ Two providers on two different paths:
 - **Translation (click path)** — Papago (Naver Cloud Platform). Fires on nearly every word, so it is
   optimized for latency and cost. Papago's free personal tier (~10k chars/day) is effectively free at
   single-word volume and is best-in-class for Korean. Returns translated text only (no lemma).
-- **Enrichment (Enrich button)** — Claude API. Fires only on demand, when the user clicks "Enrich" in
-  the card preview — NOT on every save (deliberate: free by default, the call stays rare). One
-  structured-JSON call expands the Extra field into the dictionary form (lemma) + explanation, reusing
-  the subtitle line as the in-context example. Back/translation stays the cached Papago result.
+- **Enrichment (Enrich button)** — Claude API. Fires only on demand, when the user clicks "Enrich with
+  AI" in the card preview — NOT on every save (deliberate: free by default, the call stays rare). One
+  structured-JSON (forced-tool) call returns the dictionary form (Front), a refined gloss (Back), and
+  an HTML explanation (Extra), reusing the subtitle line as the in-context example. Model is
+  user-selectable in Options (default `claude-haiku-4-5`; Sonnet for higher quality).
 - Both sit behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`) so either can
   be swapped without touching callers.
 
@@ -57,9 +59,9 @@ Two providers on two different paths:
      Anki running, so it lands next to the save step.
 7. Save button in the popup → editable card preview → `addNote`. Roles map to the configured fields:
    Front = clicked word, Back = translation, Extra = subtitle line. Tag notes `korean-anki-miner`.
-8. Polish + deferred features: nicer duplicate handling (`canAddNotes` + "add anyway"), popup
-   edge-clamping; then the Image field (capture a frame → `storeMediaFile`) and the Claude "Enrich"
-   button behind `EnrichmentProvider`.
+8. Polish + enrichment: popup edge-clamping, the "Enrich with AI" button (Claude, model-selectable)
+   behind `EnrichmentProvider`, and a rendered/editable Extra field — all done. Remaining: the Image
+   field (capture a frame → `storeMediaFile`) and nicer duplicate handling (`canAddNotes` + "add anyway").
 
 ## Gotchas / hard constraints
 - **SPA navigation** — YouTube does not reload between videos. Re-init on `yt-navigate-finish` or the
