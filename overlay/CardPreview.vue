@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { requestEnrichment } from '../enrichment/messages';
 
 // Mounted fresh when entering preview mode, so initialising the editable draft
 // from the prefill props (once) is correct.
 const props = defineProps<{
+  word: string; // clicked surface form, for enrichment context
+  sentence: string; // subtitle line, for enrichment context
   front: string;
   back: string;
   extra: string;
@@ -21,8 +24,31 @@ const front = ref(props.front);
 const back = ref(props.back);
 const extra = ref(props.extra);
 
+const enrichState = ref<'idle' | 'loading' | 'error'>('idle');
+const enrichError = ref('');
+
 const canSave = computed(() => front.value.trim() !== '' && back.value.trim() !== '');
-const busy = computed(() => props.saveState === 'saving' || props.saveState === 'saved');
+const busy = computed(
+  () => props.saveState === 'saving' || props.saveState === 'saved' || enrichState.value === 'loading',
+);
+
+async function onEnrich() {
+  if (busy.value) return;
+  enrichState.value = 'loading';
+  enrichError.value = '';
+  // The worker owns the Claude call; we pass the original word + sentence as
+  // context and write the result back into the editable fields.
+  const res = await requestEnrichment(props.word, props.sentence, back.value);
+  if (res.ok) {
+    front.value = res.front;
+    back.value = res.back;
+    extra.value = res.extra;
+    enrichState.value = 'idle';
+  } else {
+    enrichState.value = 'error';
+    enrichError.value = res.error;
+  }
+}
 
 function onSave() {
   if (!canSave.value || busy.value) return;
@@ -51,6 +77,16 @@ function onSave() {
       <textarea v-model="extra" rows="10" :disabled="busy"></textarea>
     </label>
 
+    <button
+      type="button"
+      class="kam-btn kam-enrich"
+      :disabled="busy"
+      @click="onEnrich"
+    >
+      {{ enrichState === 'loading' ? 'Enriching…' : '✨ Enrich with AI' }}
+    </button>
+
+    <div v-if="enrichState === 'error'" class="kam-preview__error">{{ enrichError }}</div>
     <div v-if="saveState === 'error'" class="kam-preview__error">{{ error }}</div>
 
     <div class="kam-preview__footer">
@@ -109,6 +145,17 @@ function onSave() {
   outline: 2px solid #4a90e2;
   outline-offset: 0;
   border-color: transparent;
+}
+
+.kam-enrich {
+  width: 100%;
+  margin: 2px 0 8px;
+  background: #3a2f52;
+  color: #d9c9ff;
+}
+
+.kam-enrich:not(:disabled):hover {
+  background: #483a66;
 }
 
 .kam-preview__error {

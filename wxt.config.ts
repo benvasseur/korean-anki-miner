@@ -8,6 +8,7 @@ export default defineConfig({
     permissions: ['storage'],
     host_permissions: [
       'https://papago.apigw.ntruss.com/*',
+      'https://api.anthropic.com/*',
       'http://127.0.0.1:8765/*',
     ],
   },

@@ -17,6 +17,11 @@ export const papagoClientSecret = storage.defineItem<string>('local:papagoClient
   fallback: '',
 });
 
+// --- Claude (Anthropic) enrichment key — local only, optional --------------
+export const claudeApiKey = storage.defineItem<string>('local:claudeApiKey', {
+  fallback: '',
+});
+
 // --- Language pair — synced preference -------------------------------------
 export interface LanguagePair {
   /** Language the captions are in (translated from). */

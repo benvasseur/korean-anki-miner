@@ -9,7 +9,19 @@ import {
   type AnkiResourcesResponse,
   type NoteValues,
 } from '../anki/messages';
-import { ankiConfig, languagePair, papagoClientId, papagoClientSecret } from '../config';
+import {
+  ankiConfig,
+  claudeApiKey,
+  languagePair,
+  papagoClientId,
+  papagoClientSecret,
+} from '../config';
+import { ClaudeProvider } from '../enrichment/claude';
+import {
+  isEnrichMessage,
+  type EnrichMessage,
+  type EnrichResponse,
+} from '../enrichment/messages';
 import { getCachedTranslation, setCachedTranslation } from '../translation/cache';
 import { isTranslateMessage, type TranslateResponse } from '../translation/messages';
 import { PapagoProvider } from '../translation/papago';
@@ -27,12 +39,45 @@ export default defineBackground(() => {
     if (isAnkiMessage(message)) {
       return handleAnki(message);
     }
+    if (isEnrichMessage(message)) {
+      return handleEnrich(message);
+    }
     if (isOpenOptionsMessage(message)) {
       return browser.runtime.openOptionsPage();
     }
     return undefined;
   });
 });
+
+async function handleEnrich(message: EnrichMessage): Promise<EnrichResponse> {
+  const apiKey = await claudeApiKey.getValue();
+  if (!apiKey) {
+    return {
+      ok: false,
+      code: 'no-credentials',
+      error: 'Add your Claude API key in the extension options.',
+    };
+  }
+
+  const { source, target } = await languagePair.getValue();
+  try {
+    const provider = new ClaudeProvider(apiKey);
+    const result = await provider.enrich({
+      word: message.word,
+      sentence: message.sentence,
+      back: message.back,
+      source,
+      target,
+    });
+    return { ok: true, ...result };
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'request-failed',
+      error: error instanceof Error ? error.message : 'Enrichment failed.',
+    };
+  }
+}
 
 async function handleAnki(
   message: AnkiMessage,

@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 import {
   LANGUAGES,
   ankiConfig,
+  claudeApiKey,
   languagePair,
   papagoClientId,
   papagoClientSecret,
@@ -20,6 +21,7 @@ const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; requi
 const form = reactive({
   clientId: '',
   clientSecret: '',
+  claudeKey: '',
   source: 'ko',
   target: 'en',
   deck: '',
@@ -41,14 +43,16 @@ const anki = reactive<{
 }>({ state: 'loading', error: '', decks: [], models: [], fields: [] });
 
 onMounted(async () => {
-  const [id, secret, pair, ac] = await Promise.all([
+  const [id, secret, claude, pair, ac] = await Promise.all([
     papagoClientId.getValue(),
     papagoClientSecret.getValue(),
+    claudeApiKey.getValue(),
     languagePair.getValue(),
     ankiConfig.getValue(),
   ]);
   form.clientId = id;
   form.clientSecret = secret;
+  form.claudeKey = claude;
   form.source = pair.source;
   form.target = pair.target;
   form.deck = ac.deck;
@@ -109,6 +113,7 @@ async function save() {
   await Promise.all([
     papagoClientId.setValue(form.clientId.trim()),
     papagoClientSecret.setValue(form.clientSecret.trim()),
+    claudeApiKey.setValue(form.claudeKey.trim()),
     languagePair.setValue({ source: form.source, target: form.target }),
     ankiConfig.setValue({ deck: form.deck, model: form.model, fields: { ...form.fields } }),
   ]);
@@ -176,6 +181,25 @@ async function save() {
               </select>
             </label>
           </div>
+        </section>
+
+        <section>
+          <h2>Enrichment — Claude <span class="optional">(optional)</span></h2>
+          <p class="hint">
+            An Anthropic API key. Used only when you click <em>Enrich with Claude</em> in the card
+            preview, to fill the dictionary form and a richer explanation. Stored locally, never synced.
+          </p>
+
+          <label class="field">
+            <span>API key</span>
+            <input
+              v-model="form.claudeKey"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="sk-ant-…"
+            />
+          </label>
         </section>
 
         <section>
@@ -284,6 +308,12 @@ section + section {
 h2 {
   margin: 0 0 6px;
   font-size: 15px;
+}
+
+.optional {
+  font-weight: 400;
+  font-size: 12px;
+  color: #8a90a0;
 }
 
 .hint {

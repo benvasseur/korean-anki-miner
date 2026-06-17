@@ -290,6 +290,8 @@ onBeforeUnmount(() => {
       />
       <CardPreview
         v-else
+        :word="selected.word"
+        :sentence="selected.sentence"
         :front="card.front"
         :back="card.back"
         :extra="card.extra"

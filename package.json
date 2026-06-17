@@ -18,6 +18,7 @@
     "wxt": "^0.20.26"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
     "vue": "^3.5.38"
   }
 }
