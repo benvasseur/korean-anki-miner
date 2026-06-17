@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import { addNote, deckNames, modelFieldNames, modelNames } from '../anki/connect';
+import { addNote, deckNames, modelFieldNames, modelNames, storeMediaFile } from '../anki/connect';
 import {
   isAnkiMessage,
   isOpenOptionsMessage,
@@ -110,8 +110,8 @@ async function handleAddNote(values: NoteValues): Promise<AddNoteResponse> {
     };
   }
 
-  // Map our roles to the configured note-type field names. Extra is only
-  // included when mapped; Image is handled in a later step.
+  // Map our roles to the configured note-type field names. Extra and Image are
+  // only included when both mapped and present.
   const noteFields: Record<string, string> = {
     [fields.front]: values.front,
     [fields.back]: values.back,
@@ -121,6 +121,10 @@ async function handleAddNote(values: NoteValues): Promise<AddNoteResponse> {
   }
 
   try {
+    if (fields.image && values.image) {
+      const filename = await storeFrame(values.image);
+      noteFields[fields.image] = `<img src="${filename}">`;
+    }
     const noteId = await addNote({
       deckName: deck,
       modelName: model,
@@ -135,6 +139,14 @@ async function handleAddNote(values: NoteValues): Promise<AddNoteResponse> {
       error: error instanceof Error ? error.message : 'Could not add the note.',
     };
   }
+}
+
+/** Stores a captured-frame data URL in Anki's media folder; returns its filename. */
+async function storeFrame(dataUrl: string): Promise<string> {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  // Self-generated name (no user input) → safe to drop into the <img> src.
+  const filename = `korean-anki-miner-${Date.now()}.jpg`;
+  return storeMediaFile(filename, base64);
 }
 
 async function handleTranslate(text: string): Promise<TranslateResponse> {

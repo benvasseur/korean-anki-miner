@@ -22,7 +22,9 @@ const props = defineProps<{
   front: string;
   back: string;
   extra: string;
+  image: string; // data URL of the captured frame, '' when none; owned by the parent
   showExtra: boolean;
+  showImage: boolean;
   saveState: 'idle' | 'saving' | 'saved' | 'error';
   error: string;
 }>();
@@ -30,6 +32,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'save', draft: { front: string; back: string; extra: string }): void;
   (e: 'cancel'): void;
+  (e: 'recapture'): void;
+  (e: 'remove'): void;
 }>();
 
 const front = ref(props.front);
@@ -115,6 +119,27 @@ function onSave() {
       >
         <span v-if="!extra.trim()" class="kam-extra__placeholder">(empty — click to add)</span>
         <div v-else v-html="renderedExtra"></div>
+      </div>
+    </div>
+
+    <div v-if="showImage" class="kam-field">
+      <span>Image</span>
+      <div v-if="image" class="kam-image">
+        <img :src="image" alt="captured frame" class="kam-image__thumb" />
+        <div class="kam-image__actions">
+          <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="emit('recapture')">
+            Recapture
+          </button>
+          <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="emit('remove')">
+            Remove
+          </button>
+        </div>
+      </div>
+      <div v-else class="kam-image kam-image--empty">
+        <span class="kam-image__placeholder">No frame captured</span>
+        <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="emit('recapture')">
+          Capture
+        </button>
       </div>
     </div>
 
@@ -215,6 +240,40 @@ function onSave() {
 }
 
 .kam-extra__placeholder {
+  color: #6b7280;
+}
+
+.kam-image {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kam-image__thumb {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #3a4150;
+}
+
+.kam-image__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.kam-image--empty {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px dashed #3a4150;
+  border-radius: 6px;
+  background: #2a3040;
+}
+
+.kam-image__placeholder {
+  font-weight: 400;
+  font-size: 13px;
   color: #6b7280;
 }
 

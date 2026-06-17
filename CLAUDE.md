@@ -60,8 +60,10 @@ Two providers on two different paths:
 7. Save button in the popup → editable card preview → `addNote`. Roles map to the configured fields:
    Front = clicked word, Back = translation, Extra = subtitle line. Tag notes `korean-anki-miner`.
 8. Polish + enrichment: popup edge-clamping, the "Enrich with AI" button (Claude, model-selectable)
-   behind `EnrichmentProvider`, and a rendered/editable Extra field — all done. Remaining: the Image
-   field (capture a frame → `storeMediaFile`) and nicer duplicate handling (`canAddNotes` + "add anyway").
+   behind `EnrichmentProvider`, a rendered/editable Extra field, and the Image field (the content
+   script captures the current `<video>` frame to a canvas with the subtitle line burned in, then the
+   worker stores it via `storeMediaFile` and references it as `<img>` in the mapped field) — all done.
+   Remaining: nicer duplicate handling (`canAddNotes` + "add anyway").
 
 ## Gotchas / hard constraints
 - **SPA navigation** — YouTube does not reload between videos. Re-init on `yt-navigate-finish` or the

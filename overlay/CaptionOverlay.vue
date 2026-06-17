@@ -4,6 +4,7 @@ import { captionText } from './caption-store';
 import { requestTranslation } from '../translation/messages';
 import { openOptions, saveNote } from '../anki/messages';
 import { ankiConfig, type AnkiConfig } from '../config';
+import { captureVideoFrame } from './capture-frame';
 import CardPreview from './CardPreview.vue';
 import WordPopup from './WordPopup.vue';
 
@@ -44,18 +45,19 @@ const result = reactive<{ state: 'loading' | 'done' | 'error'; text: string }>({
 });
 
 const mode = ref<'translation' | 'preview'>('translation');
-const card = reactive({ front: '', back: '', extra: '' });
+const card = reactive({ front: '', back: '', extra: '', image: '' });
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
 const saveError = ref('');
 
 // Anki config drives the UI (show the save button? show the Extra field?). Kept
 // live so configuring Anki in Options reflects without reloading the video tab.
-const anki = reactive({ configured: false, extraMapped: false });
+const anki = reactive({ configured: false, extraMapped: false, imageMapped: false });
 let unwatchAnki: (() => void) | undefined;
 
 function applyAnkiConfig(cfg: AnkiConfig) {
   anki.configured = Boolean(cfg.deck && cfg.model && cfg.fields.front && cfg.fields.back);
   anki.extraMapped = Boolean(cfg.fields.extra);
+  anki.imageMapped = Boolean(cfg.fields.image);
 }
 
 // --- Popup placement -------------------------------------------------------
@@ -184,9 +186,16 @@ function openPreview() {
   card.front = selected.value.word;
   card.back = result.text;
   card.extra = selected.value.sentence;
+  // Grab the frame the user is looking at, burning in the original subtitle line
+  // (selected.sentence, not card.extra — an enrich later rewrites Extra).
+  card.image = anki.imageMapped ? (captureVideoFrame(selected.value.sentence) ?? '') : '';
   saveState.value = 'idle';
   saveError.value = '';
   mode.value = 'preview';
+}
+
+function recaptureImage() {
+  card.image = captureVideoFrame(selected.value?.sentence ?? '') ?? '';
 }
 
 function cancelPreview() {
@@ -199,7 +208,7 @@ async function onSave(draft: { front: string; back: string; extra: string }) {
   saveState.value = 'saving';
   saveError.value = '';
   const id = ++saveId;
-  const res = await saveNote(draft);
+  const res = await saveNote({ ...draft, image: card.image });
   if (id !== saveId) return; // superseded
   if (res.ok) {
     saveState.value = 'saved';
@@ -295,11 +304,15 @@ onBeforeUnmount(() => {
         :front="card.front"
         :back="card.back"
         :extra="card.extra"
+        :image="card.image"
         :show-extra="anki.extraMapped"
+        :show-image="anki.imageMapped"
         :save-state="saveState"
         :error="saveError"
         @save="onSave"
         @cancel="cancelPreview"
+        @recapture="recaptureImage"
+        @remove="card.image = ''"
       />
       <div
         v-if="showArrow"

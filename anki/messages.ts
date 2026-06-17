@@ -5,6 +5,7 @@ export interface NoteValues {
   front: string;
   back: string;
   extra: string;
+  image: string; // data URL of the captured frame, '' when none
 }
 
 /** Options page / content script → service worker. */

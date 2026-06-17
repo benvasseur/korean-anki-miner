@@ -33,6 +33,10 @@ export const modelNames = () => invoke<string[]>('modelNames');
 export const modelFieldNames = (modelName: string) =>
   invoke<string[]>('modelFieldNames', { modelName });
 
+/** Stores a base64 media file in Anki's collection; returns the stored filename. */
+export const storeMediaFile = (filename: string, data: string) =>
+  invoke<string>('storeMediaFile', { filename, data });
+
 export interface AnkiNote {
   deckName: string;
   modelName: string;
