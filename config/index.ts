@@ -17,10 +17,21 @@ export const papagoClientSecret = storage.defineItem<string>('local:papagoClient
   fallback: '',
 });
 
-// --- Claude (Anthropic) enrichment key — local only, optional --------------
+// --- Claude (Anthropic) enrichment — key local, model synced ---------------
 export const claudeApiKey = storage.defineItem<string>('local:claudeApiKey', {
   fallback: '',
 });
+
+// Default to the cheapest model — enrichment is a templated formatting task.
+export const claudeModel = storage.defineItem<string>('sync:claudeModel', {
+  fallback: 'claude-haiku-4-5',
+});
+
+/** Models offered for enrichment, cheapest first. */
+export const CLAUDE_MODELS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'claude-haiku-4-5', label: 'Haiku 4.5 — cheapest' },
+  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — higher quality' },
+];
 
 // --- Language pair — synced preference -------------------------------------
 export interface LanguagePair {

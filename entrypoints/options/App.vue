@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import {
+  CLAUDE_MODELS,
   LANGUAGES,
   ankiConfig,
   claudeApiKey,
+  claudeModel,
   languagePair,
   papagoClientId,
   papagoClientSecret,
@@ -22,6 +24,7 @@ const form = reactive({
   clientId: '',
   clientSecret: '',
   claudeKey: '',
+  claudeModel: 'claude-haiku-4-5',
   source: 'ko',
   target: 'en',
   deck: '',
@@ -43,16 +46,18 @@ const anki = reactive<{
 }>({ state: 'loading', error: '', decks: [], models: [], fields: [] });
 
 onMounted(async () => {
-  const [id, secret, claude, pair, ac] = await Promise.all([
+  const [id, secret, claude, model, pair, ac] = await Promise.all([
     papagoClientId.getValue(),
     papagoClientSecret.getValue(),
     claudeApiKey.getValue(),
+    claudeModel.getValue(),
     languagePair.getValue(),
     ankiConfig.getValue(),
   ]);
   form.clientId = id;
   form.clientSecret = secret;
   form.claudeKey = claude;
+  form.claudeModel = model;
   form.source = pair.source;
   form.target = pair.target;
   form.deck = ac.deck;
@@ -114,6 +119,7 @@ async function save() {
     papagoClientId.setValue(form.clientId.trim()),
     papagoClientSecret.setValue(form.clientSecret.trim()),
     claudeApiKey.setValue(form.claudeKey.trim()),
+    claudeModel.setValue(form.claudeModel),
     languagePair.setValue({ source: form.source, target: form.target }),
     ankiConfig.setValue({ deck: form.deck, model: form.model, fields: { ...form.fields } }),
   ]);
@@ -199,6 +205,15 @@ async function save() {
               spellcheck="false"
               placeholder="sk-ant-…"
             />
+          </label>
+
+          <label class="field">
+            <span>Model</span>
+            <select v-model="form.claudeModel">
+              <option v-for="m in CLAUDE_MODELS" :key="m.id" :value="m.id">
+                {{ m.label }}
+              </option>
+            </select>
           </label>
         </section>
 

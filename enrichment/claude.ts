@@ -1,10 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { EnrichmentProvider, EnrichmentRequest, EnrichmentResult } from './types';
 
-// The user picked Sonnet 4.6 (cheaper, ample for single-word enrichment).
-// Hardcoded for now; trivial to surface in Options later.
-const MODEL = 'claude-sonnet-4-6';
-
 // A forced tool call gives us guaranteed, fully-typed structured output without
 // relying on the (newer) output_config.format param being typed in this SDK.
 const CARD_TOOL: Anthropic.Tool = {
@@ -60,7 +56,10 @@ the learner's own subtitle sentence as one example when it fits naturally.`;
 
 /** Claude (Anthropic) enrichment adapter. Runs in the service worker. */
 export class ClaudeProvider implements EnrichmentProvider {
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly model: string,
+  ) {}
 
   async enrich({ word, sentence, back, source, target }: EnrichmentRequest): Promise<EnrichmentResult> {
     // A user-supplied key on the user's own machine; the SDK adds the
@@ -76,7 +75,7 @@ export class ClaudeProvider implements EnrichmentProvider {
     let response: Anthropic.Message;
     try {
       response = await client.messages.create({
-        model: MODEL,
+        model: this.model,
         max_tokens: 2048,
         thinking: { type: 'disabled' },
         system: SYSTEM_PROMPT,

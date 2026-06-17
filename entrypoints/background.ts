@@ -12,6 +12,7 @@ import {
 import {
   ankiConfig,
   claudeApiKey,
+  claudeModel,
   languagePair,
   papagoClientId,
   papagoClientSecret,
@@ -59,9 +60,12 @@ async function handleEnrich(message: EnrichMessage): Promise<EnrichResponse> {
     };
   }
 
-  const { source, target } = await languagePair.getValue();
+  const [{ source, target }, model] = await Promise.all([
+    languagePair.getValue(),
+    claudeModel.getValue(),
+  ]);
   try {
-    const provider = new ClaudeProvider(apiKey);
+    const provider = new ClaudeProvider(apiKey, model);
     const result = await provider.enrich({
       word: message.word,
       sentence: message.sentence,
