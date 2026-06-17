@@ -19,7 +19,8 @@ Existing immersion tools (Migaku, Language Reactor) lock the core mining loop �
 
 - **Interactive captions** — the native subtitle is replaced by an overlay where every word is a clickable, hover-highlighted token. Punctuation is split off so a click yields the bare word.
 - **Instant translation** — clicking a word shows a [Papago](https://www.ncloud.com/product/aiService/papagoTranslation) translation in an anchored popup. Results are cached, so repeats are instant and free.
-- **One-click mining** — a *Save to Anki* button opens an editable card preview (Front / Back / Extra / Image), prefilled with the word, its translation, the subtitle sentence, and a screenshot of the current frame (with the subtitle burned in), then writes the note via [AnkiConnect](https://foosoft.net/projects/anki-connect/).
+- **One-click mining** — a *Save to Anki* button opens an editable card preview (Front / Back / Extra), prefilled with the word, its translation, and the subtitle sentence, then writes the note via [AnkiConnect](https://foosoft.net/projects/anki-connect/).
+- **Screenshot capture** — the card's Image field grabs the current video frame with the subtitle burned in, stores it through AnkiConnect, and renders it on the card. Capture happens on demand, with recapture/remove controls.
 - **Optional AI enrichment** — an *Enrich with AI* button calls Claude to fill the dictionary form, a refined gloss, and a formatted explanation (key expressions, examples, related words). On-demand only, behind a pluggable provider, with a selectable model (Haiku for cost, Sonnet for quality).
 - **Survives YouTube's SPA navigation**, isolates itself in a Shadow DOM, and keeps every secret and network call out of the page.
 
@@ -132,7 +133,6 @@ A few decisions worth calling out:
 
 ## Roadmap
 
-- [x] **Image field** — capture the current video frame (subtitle burned in) → `storeMediaFile` → a mapped picture field.
 - [ ] Nicer duplicate handling (`canAddNotes` pre-check + "add anyway").
 - [ ] A second enrichment provider behind `EnrichmentProvider`.
 
