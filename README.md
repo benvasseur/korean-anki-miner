@@ -11,8 +11,9 @@ Existing immersion tools (Migaku, Language Reactor) lock the core mining loop �
 
 ## Demo
 
-<!-- Replace with a screenshot or GIF of the click → translate → save flow. -->
-> 📹 _Demo GIF coming soon — drop one in at `docs/demo.gif`._
+![Korean Anki Miner in action: clicking 나라에 on a YouTube video shows a translation popup, and the resulting Anki card carries a screenshot (with the subtitle burned in) plus an AI-enriched explanation.](docs/demo.png)
+
+*Click a word in the caption overlay → the translation popup → the saved Anki card, enriched with key expressions, examples, and related words.*
 
 ## Features
 
