@@ -2,6 +2,7 @@
 
 > A Chrome extension that turns Korean YouTube subtitles into Anki flashcards — click a word, see the translation, save the card.
 
+![CI](https://github.com/benvasseur/korean-anki-miner/actions/workflows/ci.yml/badge.svg)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4?logo=googlechrome&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Vue 3](https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white)
@@ -59,13 +60,22 @@ A deliberate **two-provider split** sits behind small adapter interfaces (`Trans
 
 ### Prerequisites
 
-- **Node.js 20+** and npm
-- **Google Chrome** (or any Chromium browser)
+- **Google Chrome** (or any Chromium browser — Edge, Brave)
 - **[Anki](https://apps.ankiweb.net/)** with the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on
 - A **Naver Cloud Platform** account with a [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
 - *(optional)* an **[Anthropic API key](https://console.anthropic.com/)** for AI enrichment
+- *(only for building from source — Option B)* **Node.js 20+** and npm
 
-### Install & build
+### Install
+
+A built extension is OS-independent — the same files load on Windows, macOS, and Linux.
+
+**Option A — from a release (just use it)**
+
+1. Go to the [**Releases**](https://github.com/benvasseur/korean-anki-miner/releases) page and download `korean-anki-miner-<version>-chrome.zip`.
+2. Unzip it into a **permanent** folder — Chrome reads the extension off disk on every launch, so don't leave it in Downloads or a temp dir.
+
+**Option B — from source (development)**
 
 ```bash
 npm install
@@ -77,7 +87,7 @@ For development with hot-reload, use `npm run dev` instead (it builds to the sam
 ### Load it in Chrome
 
 1. Open `chrome://extensions` and enable **Developer mode** (top-right).
-2. Click **Load unpacked** and select `.output/chrome-mv3`.
+2. Click **Load unpacked** and select the unzipped folder (Option A) or `.output/chrome-mv3` (Option B).
 3. Note the extension's **ID** shown on the card — you'll need it for AnkiConnect.
 
 ### Configure
@@ -120,6 +130,15 @@ wxt.config.ts            # manifest, permissions, host_permissions
 | `npm run build` | Production build to `.output/chrome-mv3` |
 | `npm run compile` | Type-check with `vue-tsc` |
 | `npm run zip` | Package a distributable zip |
+
+Every push and PR runs CI (type-check + build). To **cut a release**, bump `version` in `package.json`,
+commit, then tag it:
+
+```bash
+git tag v0.1.0 && git push --tags
+```
+
+The release workflow builds the zip and publishes it to [Releases](https://github.com/benvasseur/korean-anki-miner/releases) automatically.
 
 ## Design notes
 
