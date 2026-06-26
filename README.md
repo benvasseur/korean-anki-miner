@@ -154,6 +154,9 @@ A few decisions worth calling out:
 
 - [ ] **More translation providers** — a second `TranslationProvider` (e.g. DeepL or Google) so the click path isn't tied to Papago, selectable in Options.
 - [ ] **More AI providers** — a second `EnrichmentProvider` (e.g. OpenAI or Gemini) alongside Claude, chosen the same way the model is today.
+- [ ] **Firefox support** — add WXT's `firefox` target (MV2 background page; add the `moz-extension://…` origin to AnkiConnect's CORS allowlist).
+- [ ] **Safari support** — WXT can target Safari (dedicated runner, MV2 manifest); packaging needs macOS + Xcode's web-extension converter.
+- [ ] **Publish to the extension stores** — signed builds on the Chrome Web Store / Firefox Add-ons instead of load-unpacked, for auto-update and no developer-mode prompt.
 - [ ] Nicer duplicate handling (`canAddNotes` pre-check + "add anyway").
 
 ## License
