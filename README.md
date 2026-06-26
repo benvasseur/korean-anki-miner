@@ -133,8 +133,9 @@ A few decisions worth calling out:
 
 ## Roadmap
 
+- [ ] **More translation providers** — a second `TranslationProvider` (e.g. DeepL or Google) so the click path isn't tied to Papago, selectable in Options.
+- [ ] **More AI providers** — a second `EnrichmentProvider` (e.g. OpenAI or Gemini) alongside Claude, chosen the same way the model is today.
 - [ ] Nicer duplicate handling (`canAddNotes` pre-check + "add anyway").
-- [ ] A second enrichment provider behind `EnrichmentProvider`.
 
 ## License
 
