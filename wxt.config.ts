@@ -9,6 +9,7 @@ export default defineConfig({
     host_permissions: [
       'https://papago.apigw.ntruss.com/*',
       'https://api.anthropic.com/*',
+      'https://api.mistral.ai/*',
       'http://127.0.0.1:8765/*',
     ],
   },

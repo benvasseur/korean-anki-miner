@@ -8,8 +8,9 @@ that loop, and does it well.
 
 Core loop: overlay YouTube captions → click a word → popup shows the translation → a Save button
 opens an editable preview and sends a note to Anki (Front = word, Back = translation, Extra =
-subtitle sentence). An optional "Enrich with AI" button (Claude) fills the dictionary form, a refined
-gloss, and an HTML explanation. The Image field comes later.
+subtitle sentence, Image = video frame with the subtitle burned in). An optional "Enrich with AI"
+button (Claude or Mistral, selectable) fills the dictionary form, a refined gloss, and an HTML
+explanation.
 
 ## Stack
 - WXT (https://wxt.dev) as the extension framework — MV3, HMR, manifest handling, first-class Vue support.
@@ -21,20 +22,23 @@ gloss, and an HTML explanation. The Image field comes later.
   translation popup. Mounts the Vue overlay INSIDE a Shadow DOM (see gotchas). Holds no secrets and
   makes no cross-origin calls; it sends messages to the service worker.
 - **Service worker (background)** — the privileged hub. ALL network lives here: translation API,
-  Claude API, AnkiConnect. Reached via `chrome.runtime` messaging.
+  AI enrichment (Claude/Mistral), AnkiConnect. Reached via `chrome.runtime` messaging.
 - **Storage** — `chrome.storage.sync` for user config (deck, note type, field mapping, language pair).
   `chrome.storage.local` for the translation cache and API keys.
 
 ## API split (deliberate — do not collapse into one model)
-Two providers on two different paths:
+Two API paths with different latency/cost profiles:
 - **Translation (click path)** — Papago (Naver Cloud Platform). Fires on nearly every word, so it is
   optimized for latency and cost. Papago's free personal tier (~10k chars/day) is effectively free at
   single-word volume and is best-in-class for Korean. Returns translated text only (no lemma).
-- **Enrichment (Enrich button)** — Claude API. Fires only on demand, when the user clicks "Enrich with
-  AI" in the card preview — NOT on every save (deliberate: free by default, the call stays rare). One
-  structured-JSON (forced-tool) call returns the dictionary form (Front), a refined gloss (Back), and
-  an HTML explanation (Extra), reusing the subtitle line as the in-context example. Model is
-  user-selectable in Options (default `claude-haiku-4-5`; Sonnet for higher quality).
+- **Enrichment (Enrich button)** — an AI provider, user-selectable in Options: Claude (default;
+  `claude-haiku-4-5`, Sonnet for higher quality, via the Anthropic SDK) or Mistral
+  (`mistral-small-latest` / `mistral-large-latest`, raw-fetch adapter). Fires only on demand, when the
+  user clicks "Enrich with AI" in the card preview — NOT on every save (deliberate: free by default,
+  the call stays rare). One structured-JSON (forced-tool) call returns the dictionary form (Front), a
+  refined gloss (Back), and an HTML explanation (Extra), reusing the subtitle line as the in-context
+  example. Both providers share one prompt module (`enrichment/prompt.ts`), so cards come out
+  identical whichever is selected.
 - Both sit behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`) so either can
   be swapped without touching callers.
 

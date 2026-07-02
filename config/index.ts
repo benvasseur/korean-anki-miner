@@ -17,7 +17,20 @@ export const papagoClientSecret = storage.defineItem<string>('local:papagoClient
   fallback: '',
 });
 
-// --- Claude (Anthropic) enrichment — key local, model synced ---------------
+// --- AI enrichment — keys local, provider/model synced ----------------------
+/** Which backend the "Enrich with AI" button uses. */
+export type EnrichmentProviderId = 'claude' | 'mistral';
+
+export const enrichmentProvider = storage.defineItem<EnrichmentProviderId>(
+  'sync:enrichmentProvider',
+  { fallback: 'claude' },
+);
+
+export const ENRICHMENT_PROVIDERS: ReadonlyArray<{ id: EnrichmentProviderId; label: string }> = [
+  { id: 'claude', label: 'Claude (Anthropic)' },
+  { id: 'mistral', label: 'Mistral' },
+];
+
 export const claudeApiKey = storage.defineItem<string>('local:claudeApiKey', {
   fallback: '',
 });
@@ -27,10 +40,26 @@ export const claudeModel = storage.defineItem<string>('sync:claudeModel', {
   fallback: 'claude-haiku-4-5',
 });
 
-/** Models offered for enrichment, cheapest first. */
+/** Models offered for Claude enrichment, cheapest first. */
 export const CLAUDE_MODELS: ReadonlyArray<{ id: string; label: string }> = [
   { id: 'claude-haiku-4-5', label: 'Haiku 4.5 — cheapest' },
   { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — higher quality' },
+];
+
+export const mistralApiKey = storage.defineItem<string>('local:mistralApiKey', {
+  fallback: '',
+});
+
+// The -latest aliases track Mistral's current model of each tier, so the
+// extension doesn't need an update when they rotate versions.
+export const mistralModel = storage.defineItem<string>('sync:mistralModel', {
+  fallback: 'mistral-small-latest',
+});
+
+/** Models offered for Mistral enrichment, cheapest first. */
+export const MISTRAL_MODELS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'mistral-small-latest', label: 'Mistral Small — cheapest' },
+  { id: 'mistral-large-latest', label: 'Mistral Large — higher quality' },
 ];
 
 // --- Language pair — synced preference -------------------------------------

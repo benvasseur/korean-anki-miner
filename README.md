@@ -22,7 +22,7 @@ Existing immersion tools (Migaku, Language Reactor) lock the core mining loop �
 - **Instant translation** — clicking a word shows a [Papago](https://www.ncloud.com/product/aiService/papagoTranslation) translation in an anchored popup. Results are cached, so repeats are instant and free.
 - **One-click mining** — a *Save to Anki* button opens an editable card preview (Front / Back / Extra), prefilled with the word, its translation, and the subtitle sentence, then writes the note via [AnkiConnect](https://foosoft.net/projects/anki-connect/).
 - **Screenshot capture** — the card's Image field grabs the current video frame with the subtitle burned in, stores it through AnkiConnect, and renders it on the card. Capture happens on demand, with recapture/remove controls.
-- **Optional AI enrichment** — an *Enrich with AI* button calls Claude to fill the dictionary form, a refined gloss, and a formatted explanation (key expressions, examples, related words). On-demand only, behind a pluggable provider, with a selectable model (Haiku for cost, Sonnet for quality).
+- **Optional AI enrichment** — an *Enrich with AI* button calls your chosen provider — **Claude or Mistral** — to fill the dictionary form, a refined gloss, and a formatted explanation (key expressions, examples, related words). On-demand only, with a selectable model per provider (cheap by default, larger for quality); both share one prompt, so cards come out identical either way.
 - **Survives YouTube's SPA navigation**, isolates itself in a Shadow DOM, and keeps every secret and network call out of the page.
 
 ## How it works
@@ -39,22 +39,22 @@ flowchart LR
   end
   cs -- "chrome.runtime messages" --> sw
   sw -- "translate" --> papago[("Papago<br/>Naver Cloud")]
-  sw -- "enrich (on demand)" --> claude[("Claude API")]
+  sw -- "enrich (on demand)" --> ai[("AI provider<br/>Claude / Mistral")]
   sw -- "addNote / deckNames…" --> anki[("AnkiConnect<br/>127.0.0.1:8765")]
 ```
 
-A deliberate **two-provider split** sits behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`):
+A deliberate **two-path split** sits behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`):
 
 | Path | Provider | When | Why |
 | --- | --- | --- | --- |
 | **Translation** (click) | Papago | Nearly every word | Optimized for latency/cost; best-in-class for Korean; free at single-word volume |
-| **Enrichment** (save) | Claude | Only when *Enrich* is clicked | Rich, structured output; kept rare and on-demand so it stays cheap |
+| **Enrichment** (save) | Claude or Mistral | Only when *Enrich* is clicked | Rich, structured output; kept rare and on-demand so it stays cheap |
 
 ## Tech stack
 
 - **[WXT](https://wxt.dev)** — Manifest V3 extension framework (HMR, manifest generation, first-class Vue).
 - **Vue 3** (Composition API) + **TypeScript** — overlay, popup, and options page.
-- **Anthropic SDK** for enrichment; raw `fetch` adapters for Papago and AnkiConnect.
+- **Anthropic SDK** for Claude enrichment; raw `fetch` adapters for Mistral, Papago, and AnkiConnect.
 
 ## Getting started
 
@@ -63,7 +63,7 @@ A deliberate **two-provider split** sits behind small adapter interfaces (`Trans
 - **Google Chrome** (or any Chromium browser — Edge, Brave)
 - **[Anki](https://apps.ankiweb.net/)** with the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on
 - A **Naver Cloud Platform** account with a [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
-- *(optional)* an **[Anthropic API key](https://console.anthropic.com/)** for AI enrichment
+- *(optional)* an **[Anthropic](https://console.anthropic.com/)** or **[Mistral](https://console.mistral.ai/)** API key for AI enrichment
 - *(only for building from source — Option B)* **Node.js 20+** and npm
 
 ### Install
@@ -101,7 +101,7 @@ Open the extension's **Options** page (right-click the icon → *Options*) and f
    { "webCorsOriginList": ["http://localhost", "chrome-extension://<your-extension-id>"] }
    ```
    Restart Anki, then pick your **deck**, **note type**, and map the **Front / Back / Extra** fields.
-3. **Enrichment — Claude** *(optional):* your Anthropic API key and the model to use.
+3. **Enrichment — AI** *(optional):* pick a provider (Claude or Mistral), then its API key and the model to use.
 
 ### Use it
 
@@ -116,7 +116,7 @@ entrypoints/
   options/               # Vue options page (Papago / Anki / Claude config)
 overlay/                 # in-page Vue UI: caption overlay, word popup, editable card preview
 translation/             # TranslationProvider + Papago adapter + surface-form cache
-enrichment/              # EnrichmentProvider + Claude adapter
+enrichment/              # EnrichmentProvider + Claude/Mistral adapters + shared prompt
 anki/                    # AnkiConnect adapter (deckNames / modelFieldNames / addNote)
 config/                  # typed chrome.storage items (sync prefs, local keys)
 wxt.config.ts            # manifest, permissions, host_permissions
@@ -147,13 +147,12 @@ A few decisions worth calling out:
 - **Secrets and network stay in the service worker.** The content script runs in the page; it only sends `chrome.runtime` messages. API keys live in `chrome.storage.local` and never touch the DOM, so a compromised page can't read them.
 - **The overlay is mounted in a Shadow DOM.** YouTube's CSS and ours can't leak into each other; styles are injected as a web-accessible resource, not into the page.
 - **Captions are read from the rendered DOM** (`.ytp-caption-segment`), not the `timedtext` endpoint — the latter now requires an un-synthesizable proof-of-origin token.
-- **Provider adapters** mean swapping Papago/Claude (or routing through a proxy if this were ever distributed) is a config change, not a rewrite.
-- **Enrichment is on-demand and model-selectable** — the expensive call only fires when you ask for it, and you choose the cost/quality tradeoff.
+- **Provider adapters** mean adding a backend is a new file, not a rewrite — the Mistral provider dropped in behind the same interface as Claude, sharing one prompt module. Routing through a proxy (if this were ever distributed) would be the same kind of change.
+- **Enrichment is on-demand, provider- and model-selectable** — the expensive call only fires when you ask for it, and you choose the cost/quality tradeoff.
 
 ## Roadmap
 
 - [ ] **More translation providers** — a second `TranslationProvider` (e.g. DeepL or Google) so the click path isn't tied to Papago, selectable in Options.
-- [ ] **More AI providers** — a second `EnrichmentProvider` (e.g. OpenAI or Gemini) alongside Claude, chosen the same way the model is today.
 - [ ] **Firefox support** — add WXT's `firefox` target (MV2 background page; add the `moz-extension://…` origin to AnkiConnect's CORS allowlist).
 - [ ] **Safari support** — WXT can target Safari (dedicated runner, MV2 manifest); packaging needs macOS + Xcode's web-extension converter.
 - [ ] **Publish to the extension stores** — signed builds on the Chrome Web Store / Firefox Add-ons instead of load-unpacked, for auto-update and no developer-mode prompt.

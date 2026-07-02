@@ -2,14 +2,20 @@
 import { onMounted, reactive, ref } from 'vue';
 import {
   CLAUDE_MODELS,
+  ENRICHMENT_PROVIDERS,
   LANGUAGES,
+  MISTRAL_MODELS,
   ankiConfig,
   claudeApiKey,
   claudeModel,
+  enrichmentProvider,
   languagePair,
+  mistralApiKey,
+  mistralModel,
   papagoClientId,
   papagoClientSecret,
   type AnkiFieldMap,
+  type EnrichmentProviderId,
 } from '../../config';
 import { fetchAnkiFields, fetchAnkiResources } from '../../anki/messages';
 
@@ -23,8 +29,11 @@ const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; requi
 const form = reactive({
   clientId: '',
   clientSecret: '',
+  enrichProvider: 'claude' as EnrichmentProviderId,
   claudeKey: '',
   claudeModel: 'claude-haiku-4-5',
+  mistralKey: '',
+  mistralModel: 'mistral-small-latest',
   source: 'ko',
   target: 'en',
   deck: '',
@@ -46,18 +55,24 @@ const anki = reactive<{
 }>({ state: 'loading', error: '', decks: [], models: [], fields: [] });
 
 onMounted(async () => {
-  const [id, secret, claude, model, pair, ac] = await Promise.all([
+  const [id, secret, provider, claude, model, mKey, mModel, pair, ac] = await Promise.all([
     papagoClientId.getValue(),
     papagoClientSecret.getValue(),
+    enrichmentProvider.getValue(),
     claudeApiKey.getValue(),
     claudeModel.getValue(),
+    mistralApiKey.getValue(),
+    mistralModel.getValue(),
     languagePair.getValue(),
     ankiConfig.getValue(),
   ]);
   form.clientId = id;
   form.clientSecret = secret;
+  form.enrichProvider = provider;
   form.claudeKey = claude;
   form.claudeModel = model;
+  form.mistralKey = mKey;
+  form.mistralModel = mModel;
   form.source = pair.source;
   form.target = pair.target;
   form.deck = ac.deck;
@@ -118,8 +133,11 @@ async function save() {
   await Promise.all([
     papagoClientId.setValue(form.clientId.trim()),
     papagoClientSecret.setValue(form.clientSecret.trim()),
+    enrichmentProvider.setValue(form.enrichProvider),
     claudeApiKey.setValue(form.claudeKey.trim()),
     claudeModel.setValue(form.claudeModel),
+    mistralApiKey.setValue(form.mistralKey.trim()),
+    mistralModel.setValue(form.mistralModel),
     languagePair.setValue({ source: form.source, target: form.target }),
     ankiConfig.setValue({ deck: form.deck, model: form.model, fields: { ...form.fields } }),
   ]);
@@ -190,31 +208,64 @@ async function save() {
         </section>
 
         <section>
-          <h2>Enrichment — Claude <span class="optional">(optional)</span></h2>
+          <h2>Enrichment — AI <span class="optional">(optional)</span></h2>
           <p class="hint">
-            An Anthropic API key. Used only when you click <em>Enrich with Claude</em> in the card
-            preview, to fill the dictionary form and a richer explanation. Stored locally, never synced.
+            Used only when you click <em>Enrich with AI</em> in the card preview, to fill the
+            dictionary form and a richer explanation. API keys are stored locally, never synced.
           </p>
 
           <label class="field">
-            <span>API key</span>
-            <input
-              v-model="form.claudeKey"
-              type="password"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="sk-ant-…"
-            />
-          </label>
-
-          <label class="field">
-            <span>Model</span>
-            <select v-model="form.claudeModel">
-              <option v-for="m in CLAUDE_MODELS" :key="m.id" :value="m.id">
-                {{ m.label }}
+            <span>Provider</span>
+            <select v-model="form.enrichProvider">
+              <option v-for="p in ENRICHMENT_PROVIDERS" :key="p.id" :value="p.id">
+                {{ p.label }}
               </option>
             </select>
           </label>
+
+          <template v-if="form.enrichProvider === 'claude'">
+            <label class="field">
+              <span>API key</span>
+              <input
+                v-model="form.claudeKey"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="sk-ant-…"
+              />
+            </label>
+
+            <label class="field">
+              <span>Model</span>
+              <select v-model="form.claudeModel">
+                <option v-for="m in CLAUDE_MODELS" :key="m.id" :value="m.id">
+                  {{ m.label }}
+                </option>
+              </select>
+            </label>
+          </template>
+
+          <template v-else>
+            <label class="field">
+              <span>API key</span>
+              <input
+                v-model="form.mistralKey"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="from console.mistral.ai"
+              />
+            </label>
+
+            <label class="field">
+              <span>Model</span>
+              <select v-model="form.mistralModel">
+                <option v-for="m in MISTRAL_MODELS" :key="m.id" :value="m.id">
+                  {{ m.label }}
+                </option>
+              </select>
+            </label>
+          </template>
         </section>
 
         <section>

@@ -13,11 +13,16 @@ import {
   ankiConfig,
   claudeApiKey,
   claudeModel,
+  enrichmentProvider,
   languagePair,
+  mistralApiKey,
+  mistralModel,
   papagoClientId,
   papagoClientSecret,
 } from '../config';
 import { ClaudeProvider } from '../enrichment/claude';
+import { MistralProvider } from '../enrichment/mistral';
+import type { EnrichmentProvider } from '../enrichment/types';
 import {
   isEnrichMessage,
   type EnrichMessage,
@@ -51,21 +56,34 @@ export default defineBackground(() => {
 });
 
 async function handleEnrich(message: EnrichMessage): Promise<EnrichResponse> {
-  const apiKey = await claudeApiKey.getValue();
-  if (!apiKey) {
-    return {
-      ok: false,
-      code: 'no-credentials',
-      error: 'Add your Claude API key in the extension options.',
-    };
+  // Build the adapter for whichever backend is selected in Options; from here
+  // on, both providers behave identically (shared prompt, same result shape).
+  const providerId = await enrichmentProvider.getValue();
+  let provider: EnrichmentProvider;
+  if (providerId === 'mistral') {
+    const [apiKey, model] = await Promise.all([mistralApiKey.getValue(), mistralModel.getValue()]);
+    if (!apiKey) {
+      return {
+        ok: false,
+        code: 'no-credentials',
+        error: 'Add your Mistral API key in the extension options.',
+      };
+    }
+    provider = new MistralProvider(apiKey, model);
+  } else {
+    const [apiKey, model] = await Promise.all([claudeApiKey.getValue(), claudeModel.getValue()]);
+    if (!apiKey) {
+      return {
+        ok: false,
+        code: 'no-credentials',
+        error: 'Add your Claude API key in the extension options.',
+      };
+    }
+    provider = new ClaudeProvider(apiKey, model);
   }
 
-  const [{ source, target }, model] = await Promise.all([
-    languagePair.getValue(),
-    claudeModel.getValue(),
-  ]);
+  const { source, target } = await languagePair.getValue();
   try {
-    const provider = new ClaudeProvider(apiKey, model);
     const result = await provider.enrich({
       word: message.word,
       sentence: message.sentence,
