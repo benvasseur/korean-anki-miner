@@ -13,12 +13,14 @@ import {
   ankiConfig,
   claudeApiKey,
   claudeModel,
+  deeplApiKey,
   enrichmentProvider,
   languagePair,
   mistralApiKey,
   mistralModel,
   papagoClientId,
   papagoClientSecret,
+  translationProvider,
 } from '../config';
 import { ClaudeProvider } from '../enrichment/claude';
 import { MistralProvider } from '../enrichment/mistral';
@@ -29,8 +31,10 @@ import {
   type EnrichResponse,
 } from '../enrichment/messages';
 import { getCachedTranslation, setCachedTranslation } from '../translation/cache';
+import { DeeplProvider } from '../translation/deepl';
 import { isTranslateMessage, type TranslateResponse } from '../translation/messages';
 import { PapagoProvider } from '../translation/papago';
+import type { TranslationProvider } from '../translation/types';
 
 export default defineBackground(() => {
   console.log('[korean-anki-miner] background service worker started');
@@ -168,30 +172,48 @@ async function storeFrame(dataUrl: string): Promise<string> {
 }
 
 async function handleTranslate(text: string): Promise<TranslateResponse> {
-  const { source, target } = await languagePair.getValue();
+  const [{ source, target }, providerId] = await Promise.all([
+    languagePair.getValue(),
+    translationProvider.getValue(),
+  ]);
 
-  const cached = await getCachedTranslation(source, target, text);
+  // Cached per provider: the two return different glosses for the same word, so
+  // switching providers should not keep serving the old one's answers.
+  const cached = await getCachedTranslation(providerId, source, target, text);
   if (cached != null) {
-    return { ok: true, translation: cached, cached: true };
+    return { ok: true, translation: cached, cached: true, provider: providerId };
   }
 
-  const [clientId, clientSecret] = await Promise.all([
-    papagoClientId.getValue(),
-    papagoClientSecret.getValue(),
-  ]);
-  if (!clientId || !clientSecret) {
-    return {
-      ok: false,
-      code: 'no-credentials',
-      error: 'Add your Papago API keys in the extension options.',
-    };
+  let provider: TranslationProvider;
+  if (providerId === 'papago') {
+    const [clientId, clientSecret] = await Promise.all([
+      papagoClientId.getValue(),
+      papagoClientSecret.getValue(),
+    ]);
+    if (!clientId || !clientSecret) {
+      return {
+        ok: false,
+        code: 'no-credentials',
+        error: 'Add your Papago API keys in the extension options.',
+      };
+    }
+    provider = new PapagoProvider({ clientId, clientSecret });
+  } else {
+    const apiKey = await deeplApiKey.getValue();
+    if (!apiKey) {
+      return {
+        ok: false,
+        code: 'no-credentials',
+        error: 'Add your DeepL API key in the extension options.',
+      };
+    }
+    provider = new DeeplProvider(apiKey);
   }
 
   try {
-    const provider = new PapagoProvider({ clientId, clientSecret });
     const translation = await provider.translate({ text, source, target });
-    await setCachedTranslation(source, target, text, translation);
-    return { ok: true, translation, cached: false };
+    await setCachedTranslation(providerId, source, target, text, translation);
+    return { ok: true, translation, cached: false, provider: providerId };
   } catch (error) {
     return {
       ok: false,

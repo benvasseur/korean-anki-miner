@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import type { TranslationProviderId } from '../config';
 
 /** Content script → service worker: translate a clicked word. */
 export interface TranslateMessage {
@@ -7,7 +8,9 @@ export interface TranslateMessage {
 }
 
 export type TranslateResponse =
-  | { ok: true; translation: string; cached: boolean }
+  // `provider` travels with the result so the popup can credit it without
+  // reading config itself (and stays right even if the setting changes mid-flight).
+  | { ok: true; translation: string; cached: boolean; provider: TranslationProviderId }
   | { ok: false; code: 'no-credentials' | 'request-failed'; error: string };
 
 /** Sent from the content script; resolved by the service-worker handler. */

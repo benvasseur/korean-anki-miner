@@ -5,19 +5,24 @@ import {
   ENRICHMENT_PROVIDERS,
   LANGUAGES,
   MISTRAL_MODELS,
+  TRANSLATION_PROVIDERS,
   ankiConfig,
   claudeApiKey,
   claudeModel,
+  deeplApiKey,
   enrichmentProvider,
   languagePair,
   mistralApiKey,
   mistralModel,
   papagoClientId,
   papagoClientSecret,
+  translationProvider,
   type AnkiFieldMap,
   type EnrichmentProviderId,
+  type TranslationProviderId,
 } from '../../config';
 import { fetchAnkiFields, fetchAnkiResources } from '../../anki/messages';
+import SecretField from './SecretField.vue';
 
 const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; required: boolean }> = [
   { key: 'front', label: 'Front — Korean word', required: true },
@@ -27,6 +32,8 @@ const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; requi
 ];
 
 const form = reactive({
+  translateProvider: 'deepl' as TranslationProviderId,
+  deeplKey: '',
   clientId: '',
   clientSecret: '',
   enrichProvider: 'claude' as EnrichmentProviderId,
@@ -55,17 +62,22 @@ const anki = reactive<{
 }>({ state: 'loading', error: '', decks: [], models: [], fields: [] });
 
 onMounted(async () => {
-  const [id, secret, provider, claude, model, mKey, mModel, pair, ac] = await Promise.all([
-    papagoClientId.getValue(),
-    papagoClientSecret.getValue(),
-    enrichmentProvider.getValue(),
-    claudeApiKey.getValue(),
-    claudeModel.getValue(),
-    mistralApiKey.getValue(),
-    mistralModel.getValue(),
-    languagePair.getValue(),
-    ankiConfig.getValue(),
-  ]);
+  const [tProvider, deepl, id, secret, provider, claude, model, mKey, mModel, pair, ac] =
+    await Promise.all([
+      translationProvider.getValue(),
+      deeplApiKey.getValue(),
+      papagoClientId.getValue(),
+      papagoClientSecret.getValue(),
+      enrichmentProvider.getValue(),
+      claudeApiKey.getValue(),
+      claudeModel.getValue(),
+      mistralApiKey.getValue(),
+      mistralModel.getValue(),
+      languagePair.getValue(),
+      ankiConfig.getValue(),
+    ]);
+  form.translateProvider = tProvider;
+  form.deeplKey = deepl;
   form.clientId = id;
   form.clientSecret = secret;
   form.enrichProvider = provider;
@@ -120,7 +132,7 @@ async function loadFields(model: string) {
 async function save() {
   validationError.value = '';
 
-  // Saving Papago-only is fine. But once any Anki choice is made, require a
+  // Saving translation credentials alone is fine. But once any Anki choice is made, require a
   // usable mapping: a deck, a note type, and at least Front + Back.
   const ankiTouched =
     form.deck || form.model || Object.values(form.fields).some(Boolean);
@@ -131,6 +143,8 @@ async function save() {
   }
 
   await Promise.all([
+    translationProvider.setValue(form.translateProvider),
+    deeplApiKey.setValue(form.deeplKey.trim()),
     papagoClientId.setValue(form.clientId.trim()),
     papagoClientSecret.setValue(form.clientSecret.trim()),
     enrichmentProvider.setValue(form.enrichProvider),
@@ -155,33 +169,57 @@ async function save() {
     <form class="card" @submit.prevent="save">
       <fieldset :disabled="!loaded">
         <section>
-          <h2>Translation — Papago</h2>
+          <h2>Translation</h2>
           <p class="hint">
-            From a Naver Cloud Platform <em>Papago Translation</em> application.
-            Stored locally on this device, never synced.
+            Used every time you click a word. Keys are stored locally on this device, never
+            synced.
           </p>
 
           <label class="field">
-            <span>Client ID</span>
-            <input
-              v-model="form.clientId"
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="X-NCP-APIGW-API-KEY-ID"
-            />
+            <span>Provider</span>
+            <select v-model="form.translateProvider">
+              <option v-for="p in TRANSLATION_PROVIDERS" :key="p.id" :value="p.id">
+                {{ p.label }}
+              </option>
+            </select>
           </label>
 
-          <label class="field">
-            <span>Client Secret</span>
-            <input
+          <template v-if="form.translateProvider === 'deepl'">
+            <p class="hint">
+              A DeepL API key, Free or Pro — keys ending in <code>:fx</code> are routed to the
+              free endpoint automatically. The Free plan's 500,000 characters/month is far
+              beyond what single words use.
+            </p>
+
+            <SecretField
+              v-model="form.deeplKey"
+              label="API key"
+              placeholder="DeepL-Auth-Key value"
+            />
+          </template>
+
+          <template v-else>
+            <p class="hint">
+              From a Naver Cloud Platform <em>Papago Translation</em> application.
+            </p>
+
+            <label class="field">
+              <span>Client ID</span>
+              <input
+                v-model="form.clientId"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="X-NCP-APIGW-API-KEY-ID"
+              />
+            </label>
+
+            <SecretField
               v-model="form.clientSecret"
-              type="password"
-              autocomplete="off"
-              spellcheck="false"
+              label="Client Secret"
               placeholder="X-NCP-APIGW-API-KEY"
             />
-          </label>
+          </template>
         </section>
 
         <section>
@@ -224,16 +262,7 @@ async function save() {
           </label>
 
           <template v-if="form.enrichProvider === 'claude'">
-            <label class="field">
-              <span>API key</span>
-              <input
-                v-model="form.claudeKey"
-                type="password"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="sk-ant-…"
-              />
-            </label>
+            <SecretField v-model="form.claudeKey" label="API key" placeholder="sk-ant-…" />
 
             <label class="field">
               <span>Model</span>
@@ -246,16 +275,11 @@ async function save() {
           </template>
 
           <template v-else>
-            <label class="field">
-              <span>API key</span>
-              <input
-                v-model="form.mistralKey"
-                type="password"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="from console.mistral.ai"
-              />
-            </label>
+            <SecretField
+              v-model="form.mistralKey"
+              label="API key"
+              placeholder="from console.mistral.ai"
+            />
 
             <label class="field">
               <span>Model</span>

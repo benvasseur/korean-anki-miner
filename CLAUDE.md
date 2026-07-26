@@ -28,9 +28,12 @@ explanation.
 
 ## API split (deliberate — do not collapse into one model)
 Two API paths with different latency/cost profiles:
-- **Translation (click path)** — Papago (Naver Cloud Platform). Fires on nearly every word, so it is
-  optimized for latency and cost. Papago's free personal tier (~10k chars/day) is effectively free at
-  single-word volume and is best-in-class for Korean. Returns translated text only (no lemma).
+- **Translation (click path)** — user-selectable in Options: DeepL (default) or Papago (Naver Cloud
+  Platform). Fires on nearly every word, so it is optimized for latency and cost. DeepL API Free gives
+  500k chars/month — effectively unlimited at single-word volume, and cheaper than Papago's metered
+  tier; its adapter routes free keys (suffix `:fx`) to `api-free.deepl.com` and Pro keys to
+  `api.deepl.com`, and maps our lowercase language codes to DeepL's uppercase ones (variants like
+  `EN-US` / `ZH-HANS` are target-only). Either provider returns translated text only (no lemma).
 - **Enrichment (Enrich button)** — an AI provider, user-selectable in Options: Claude (default;
   `claude-haiku-4-5`, Sonnet for higher quality, via the Anthropic SDK) or Mistral
   (`mistral-small-latest` / `mistral-large-latest`, raw-fetch adapter). Fires only on demand, when the
@@ -85,8 +88,9 @@ Two API paths with different latency/cost profiles:
   not the lemma. v1: prefill the surface token into the editable preview so the user can fix it to the
   dictionary form before saving; Claude can resolve the lemma on demand (Enrich). Do not block v1 on a
   morphological analyzer.
-- **Translation caching** — cache by surface form in `chrome.storage.local`. High-frequency words and
-  particles repeat constantly; caching makes repeats instant at zero quota.
+- **Translation caching** — cache by provider + language pair + surface form in `chrome.storage.local`.
+  High-frequency words and particles repeat constantly; caching makes repeats instant at zero quota.
+  The provider is part of the key so switching backends doesn't keep serving the old one's glosses.
 
 ## Out of scope for v1
 Non-YouTube sites, audio/TTS, SRS scheduling tweaks, bulk export, accounts/sync. Keep it to the loop.

@@ -7,6 +7,8 @@ export default defineConfig({
     description: 'Mine Korean vocabulary from YouTube subtitles into Anki.',
     permissions: ['storage'],
     host_permissions: [
+      'https://api-free.deepl.com/*',
+      'https://api.deepl.com/*',
       'https://papago.apigw.ntruss.com/*',
       'https://api.anthropic.com/*',
       'https://api.mistral.ai/*',

@@ -9,6 +9,37 @@ import { storage } from 'wxt/utils/storage';
  * `chrome.storage.sync` so they follow the user across browsers.
  */
 
+// --- Translation (click path) — keys local, provider choice synced ----------
+/** Which backend the click path translates with. */
+export type TranslationProviderId = 'deepl' | 'papago';
+
+// DeepL is the default: its free tier (500k chars/month) is effectively
+// unlimited at single-word volume, where Papago's is not.
+export const translationProvider = storage.defineItem<TranslationProviderId>(
+  'sync:translationProvider',
+  { fallback: 'deepl' },
+);
+
+/** `label` names the option in Options; `name` is the short form the in-page
+ *  attribution tag shows. */
+export const TRANSLATION_PROVIDERS: ReadonlyArray<{
+  id: TranslationProviderId;
+  label: string;
+  name: string;
+}> = [
+  { id: 'deepl', label: 'DeepL', name: 'DeepL' },
+  { id: 'papago', label: 'Papago (Naver Cloud)', name: 'Papago' },
+];
+
+export function translationProviderName(id: TranslationProviderId): string {
+  return TRANSLATION_PROVIDERS.find((p) => p.id === id)?.name ?? id;
+}
+
+/** One key; the adapter routes free (`:fx`) keys to the free endpoint. */
+export const deeplApiKey = storage.defineItem<string>('local:deeplApiKey', {
+  fallback: '',
+});
+
 // --- Papago (Naver Cloud Platform) credentials — local only ----------------
 export const papagoClientId = storage.defineItem<string>('local:papagoClientId', {
   fallback: '',
@@ -26,10 +57,18 @@ export const enrichmentProvider = storage.defineItem<EnrichmentProviderId>(
   { fallback: 'claude' },
 );
 
-export const ENRICHMENT_PROVIDERS: ReadonlyArray<{ id: EnrichmentProviderId; label: string }> = [
-  { id: 'claude', label: 'Claude (Anthropic)' },
-  { id: 'mistral', label: 'Mistral' },
+export const ENRICHMENT_PROVIDERS: ReadonlyArray<{
+  id: EnrichmentProviderId;
+  label: string;
+  name: string;
+}> = [
+  { id: 'claude', label: 'Claude (Anthropic)', name: 'Claude' },
+  { id: 'mistral', label: 'Mistral', name: 'Mistral' },
 ];
+
+export function enrichmentProviderName(id: EnrichmentProviderId): string {
+  return ENRICHMENT_PROVIDERS.find((p) => p.id === id)?.name ?? id;
+}
 
 export const claudeApiKey = storage.defineItem<string>('local:claudeApiKey', {
   fallback: '',
@@ -78,7 +117,7 @@ export const languagePair = storage.defineItem<LanguagePair>('sync:languagePair'
 /** Maps our card roles to a note type's field names. '' means unmapped. */
 export interface AnkiFieldMap {
   front: string; // required: Korean word (clicked surface form)
-  back: string; // required: Papago translation
+  back: string; // required: the translation
   extra: string; // optional: subtitle sentence now, Claude explanation later
   image: string; // optional: video screenshot (implemented later)
 }
@@ -93,7 +132,8 @@ export const ankiConfig = storage.defineItem<AnkiConfig>('sync:ankiConfig', {
   fallback: { deck: '', model: '', fields: { front: '', back: '', extra: '', image: '' } },
 });
 
-/** Papago-supported languages, narrowed to a useful subset for the dropdowns. */
+/** Languages both providers support, narrowed to a useful subset for the
+ *  dropdowns. The DeepL adapter maps these codes to its own uppercase form. */
 export const LANGUAGES: ReadonlyArray<{ code: string; label: string }> = [
   { code: 'ko', label: 'Korean' },
   { code: 'en', label: 'English' },
