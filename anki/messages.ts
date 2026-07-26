@@ -15,12 +15,9 @@ export type AnkiMessage =
   | { type: 'anki:addNote'; values: NoteValues };
 
 export type AnkiResourcesResponse =
-  | { ok: true; decks: string[]; models: string[] }
-  | { ok: false; error: string };
+  { ok: true; decks: string[]; models: string[] } | { ok: false; error: string };
 
-export type AnkiFieldsResponse =
-  | { ok: true; fields: string[] }
-  | { ok: false; error: string };
+export type AnkiFieldsResponse = { ok: true; fields: string[] } | { ok: false; error: string };
 
 export type AddNoteResponse =
   | { ok: true; noteId: number }

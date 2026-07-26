@@ -40,13 +40,17 @@ export class ClaudeProvider implements EnrichmentProvider {
         messages: [{ role: 'user', content: buildUserMessage(request) }],
       });
     } catch (error) {
+      // The user-facing message replaces the SDK's, so keep the original as
+      // `cause` — it is the only place the real status/body survives.
       if (error instanceof Anthropic.AuthenticationError) {
-        throw new Error('Claude rejected the API key — check it in Options.');
+        throw new Error('Claude rejected the API key — check it in Options.', { cause: error });
       }
       if (error instanceof Anthropic.RateLimitError) {
-        throw new Error('Claude rate limit reached. Try again shortly.');
+        throw new Error('Claude rate limit reached. Try again shortly.', { cause: error });
       }
-      throw new Error(error instanceof Error ? error.message : 'Enrichment failed.');
+      throw new Error(error instanceof Error ? error.message : 'Enrichment failed.', {
+        cause: error,
+      });
     }
 
     const toolUse = response.content.find(

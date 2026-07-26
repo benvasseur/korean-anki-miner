@@ -25,11 +25,7 @@ import {
 import { ClaudeProvider } from '../enrichment/claude';
 import { MistralProvider } from '../enrichment/mistral';
 import type { EnrichmentProvider } from '../enrichment/types';
-import {
-  isEnrichMessage,
-  type EnrichMessage,
-  type EnrichResponse,
-} from '../enrichment/messages';
+import { isEnrichMessage, type EnrichMessage, type EnrichResponse } from '../enrichment/messages';
 import { getCachedTranslation, setCachedTranslation } from '../translation/cache';
 import { DeeplProvider } from '../translation/deepl';
 import { isTranslateMessage, type TranslateResponse } from '../translation/messages';
@@ -118,7 +114,10 @@ async function handleAnki(
     }
     return { ok: true, fields: await modelFieldNames(message.model) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : 'AnkiConnect request failed.' };
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'AnkiConnect request failed.',
+    };
   }
 }
 

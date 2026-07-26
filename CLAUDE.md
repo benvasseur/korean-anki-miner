@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 ## Project
+
 Chrome extension (Manifest V3) for mining Korean vocabulary from YouTube subtitles into Anki.
 Personal tool, single user. WHY: existing tools (Migaku, Language Reactor) lock the core loop —
 see a word's meaning, click, save to Anki — behind subscriptions and feature bloat. This does only
@@ -13,11 +14,13 @@ button (Claude or Mistral, selectable) fills the dictionary form, a refined glos
 explanation.
 
 ## Stack
+
 - WXT (https://wxt.dev) as the extension framework — MV3, HMR, manifest handling, first-class Vue support.
 - Vue 3 (Composition API) + TypeScript for all UI: popup, options page, and the in-page overlay.
 - Node tooling. No backend in v1 (see API keys).
 
 ## Architecture
+
 - **Content script** — owns the DOM. Reads the current caption, renders the word overlay and the
   translation popup. Mounts the Vue overlay INSIDE a Shadow DOM (see gotchas). Holds no secrets and
   makes no cross-origin calls; it sends messages to the service worker.
@@ -27,7 +30,9 @@ explanation.
   `chrome.storage.local` for the translation cache and API keys.
 
 ## API split (deliberate — do not collapse into one model)
+
 Two API paths with different latency/cost profiles:
+
 - **Translation (click path)** — user-selectable in Options: DeepL (default) or Papago (Naver Cloud
   Platform). Fires on nearly every word, so it is optimized for latency and cost. DeepL API Free gives
   500k chars/month — effectively unlimited at single-word volume, and cheaper than Papago's metered
@@ -46,12 +51,14 @@ Two API paths with different latency/cost profiles:
   be swapped without touching callers.
 
 ## API keys
+
 - Configurable via the options page, stored in `chrome.storage.local`. NEVER hardcoded.
 - Personal tool → a user-supplied key on the user's own machine is acceptable.
 - If ever distributed: keys cannot live in the bundle (trivially extractable). Route through a thin Node
   proxy instead. The adapter layer keeps that a config change, not a rewrite.
 
 ## Build order (each step independently testable; commit between steps)
+
 1. MV3 skeleton: manifest + a content script that `console.log`s on a watch page. Confirm load-unpacked.
 2. Read the current caption from the DOM; handle SPA navigation (`yt-navigate-finish`).
 3. Render the overlay in a Shadow DOM; each word a clickable `<span>`.
@@ -73,6 +80,7 @@ Two API paths with different latency/cost profiles:
    Remaining: nicer duplicate handling (`canAddNotes` + "add anyway").
 
 ## Gotchas / hard constraints
+
 - **SPA navigation** — YouTube does not reload between videos. Re-init on `yt-navigate-finish` or the
   script dies silently on the second video.
 - **Shadow DOM is mandatory** for the overlay — isolates our CSS from YouTube's and vice versa.
@@ -93,4 +101,5 @@ Two API paths with different latency/cost profiles:
   The provider is part of the key so switching backends doesn't keep serving the old one's glosses.
 
 ## Out of scope for v1
+
 Non-YouTube sites, audio/TTS, SRS scheduling tweaks, bulk export, accounts/sync. Keep it to the loop.

@@ -58,7 +58,13 @@ senses too); "<b>Key expressions:</b>" with 2–4 bolded collocations and glosse
 example pairs); "<b>Related:</b>" with 2–3 related words and brief distinctions. Keep it concise. Reuse
 the learner's own subtitle sentence as one example when it fits naturally.`;
 
-export function buildUserMessage({ word, sentence, back, source, target }: EnrichmentRequest): string {
+export function buildUserMessage({
+  word,
+  sentence,
+  back,
+  source,
+  target,
+}: EnrichmentRequest): string {
   return (
     `Source language: ${source}. Target language (for glosses/translations): ${target}.\n` +
     `Word: ${word}\n` +

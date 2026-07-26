@@ -134,8 +134,7 @@ async function save() {
 
   // Saving translation credentials alone is fine. But once any Anki choice is made, require a
   // usable mapping: a deck, a note type, and at least Front + Back.
-  const ankiTouched =
-    form.deck || form.model || Object.values(form.fields).some(Boolean);
+  const ankiTouched = form.deck || form.model || Object.values(form.fields).some(Boolean);
   if (ankiTouched && (!form.deck || !form.model || !form.fields.front || !form.fields.back)) {
     validationError.value =
       'For Anki, choose a deck and note type and map at least Front and Back.';
@@ -171,8 +170,7 @@ async function save() {
         <section>
           <h2>Translation</h2>
           <p class="hint">
-            Used every time you click a word. Keys are stored locally on this device, never
-            synced.
+            Used every time you click a word. Keys are stored locally on this device, never synced.
           </p>
 
           <label class="field">
@@ -186,9 +184,9 @@ async function save() {
 
           <template v-if="form.translateProvider === 'deepl'">
             <p class="hint">
-              A DeepL API key, Free or Pro — keys ending in <code>:fx</code> are routed to the
-              free endpoint automatically. The Free plan's 500,000 characters/month is far
-              beyond what single words use.
+              A DeepL API key, Free or Pro — keys ending in <code>:fx</code> are routed to the free
+              endpoint automatically. The Free plan's 500,000 characters/month is far beyond what
+              single words use.
             </p>
 
             <SecretField
@@ -199,9 +197,7 @@ async function save() {
           </template>
 
           <template v-else>
-            <p class="hint">
-              From a Naver Cloud Platform <em>Papago Translation</em> application.
-            </p>
+            <p class="hint">From a Naver Cloud Platform <em>Papago Translation</em> application.</p>
 
             <label class="field">
               <span>Client ID</span>
@@ -294,9 +290,7 @@ async function save() {
 
         <section>
           <h2>Anki</h2>
-          <p class="hint">
-            Cards are saved through the AnkiConnect add-on — Anki must be running.
-          </p>
+          <p class="hint">Cards are saved through the AnkiConnect add-on — Anki must be running.</p>
 
           <p v-if="anki.state === 'loading'" class="hint">Connecting to Anki…</p>
 

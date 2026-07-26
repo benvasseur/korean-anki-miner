@@ -11,29 +11,11 @@ import {
   type AnkiConfig,
 } from '../config';
 import { captureVideoFrame } from './capture-frame';
+import { tokenizeCaption } from './tokenize';
 import CardPreview from './CardPreview.vue';
 import WordPopup from './WordPopup.vue';
 
-// A run of letters/numbers is a clickable word; everything else (quotes, commas,
-// ellipses…) is rendered but inert. \p{L}\p{N}\p{M} keeps Hangul (and combining
-// marks) together while excluding punctuation, so clicking 일하고... yields 일하고
-// and '일하기 / 귀찮다' yield 일하기 / 귀찮다 without the surrounding marks.
-const RUN = /[\p{L}\p{N}\p{M}]+|[^\p{L}\p{N}\p{M}]+/gu;
-const IS_WORD = /[\p{L}\p{N}\p{M}]/u;
-
-interface Segment {
-  text: string;
-  word: boolean;
-}
-
-const tokens = computed<Segment[][]>(() =>
-  captionText.value
-    .split(/\s+/)
-    .filter((t) => t.length > 0)
-    .map((token) =>
-      (token.match(RUN) ?? []).map((run) => ({ text: run, word: IS_WORD.test(run) })),
-    ),
-);
+const tokens = computed(() => tokenizeCaption(captionText.value));
 
 const rootEl = ref<HTMLElement | null>(null);
 const popupEl = ref<HTMLElement | null>(null);
@@ -371,12 +353,7 @@ onBeforeUnmount(() => {
         @recapture="recaptureImage"
         @remove="card.image = ''"
       />
-      <div
-        v-if="showArrow"
-        class="kam-popup__arrow"
-        :style="arrowStyle"
-        aria-hidden="true"
-      ></div>
+      <div v-if="showArrow" class="kam-popup__arrow" :style="arrowStyle" aria-hidden="true"></div>
     </div>
   </div>
 </template>

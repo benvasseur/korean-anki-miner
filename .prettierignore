@@ -1,0 +1,8 @@
+.output
+.wxt
+node_modules
+coverage
+package-lock.json
+docs/*.gif
+docs/*.mp4
+docs/*.png

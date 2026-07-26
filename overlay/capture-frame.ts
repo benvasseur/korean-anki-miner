@@ -75,8 +75,8 @@ function drawCaption(
   });
 }
 
-/** Greedy word-wrap so the caption fits within `maxWidth`. */
-function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+/** Greedy word-wrap so the caption fits within `maxWidth`. Exported for tests. */
+export function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let line = '';
   for (const word of text.split(/\s+/)) {
