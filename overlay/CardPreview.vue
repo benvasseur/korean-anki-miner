@@ -1,18 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { requestEnrichment } from '../enrichment/messages';
-
-// The Extra field is model-generated HTML; allow only basic inline formatting
-// and strip every attribute, so an injected onerror/onclick can't run when we
-// render it with v-html.
-const ALLOWED_TAGS = new Set(['b', 'i', 'u', 'strong', 'em', 'br']);
-function sanitizeHtml(html: string): string {
-  return html.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, (_match, rawName: string) => {
-    const name = rawName.toLowerCase();
-    if (!ALLOWED_TAGS.has(name)) return ''; // drop the tag, keep any text
-    return _match.startsWith('</') ? `</${name}>` : `<${name}>`; // drop attributes
-  });
-}
+import { sanitizeHtml } from './sanitize';
 
 // Mounted fresh when entering preview mode, so initialising the editable draft
 // from the prefill props (once) is correct.
@@ -47,7 +36,8 @@ const enrichError = ref('');
 
 const canSave = computed(() => front.value.trim() !== '' && back.value.trim() !== '');
 const busy = computed(
-  () => props.saveState === 'saving' || props.saveState === 'saved' || enrichState.value === 'loading',
+  () =>
+    props.saveState === 'saving' || props.saveState === 'saved' || enrichState.value === 'loading',
 );
 
 // Extra renders as formatted HTML by default; click to edit the raw source.
@@ -120,6 +110,10 @@ function onSave() {
         @focus="startEditExtra"
       >
         <span v-if="!extra.trim()" class="kam-extra__placeholder">(empty — click to add)</span>
+        <!-- renderedExtra is run through sanitizeHtml(), which parses rather than
+             regex-matches the markup and keeps only attribute-free inline tags.
+             The attack cases it has to survive are in overlay/sanitize.test.ts. -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
         <div v-else v-html="renderedExtra"></div>
       </div>
     </div>
@@ -129,28 +123,38 @@ function onSave() {
       <div v-if="image" class="kam-image">
         <img :src="image" alt="captured frame" class="kam-image__thumb" />
         <div class="kam-image__actions">
-          <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="emit('recapture')">
+          <button
+            type="button"
+            class="kam-btn kam-btn--ghost"
+            :disabled="busy"
+            @click="emit('recapture')"
+          >
             Recapture
           </button>
-          <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="emit('remove')">
+          <button
+            type="button"
+            class="kam-btn kam-btn--ghost"
+            :disabled="busy"
+            @click="emit('remove')"
+          >
             Remove
           </button>
         </div>
       </div>
       <div v-else class="kam-image kam-image--empty">
         <span class="kam-image__placeholder">No frame captured</span>
-        <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="emit('recapture')">
+        <button
+          type="button"
+          class="kam-btn kam-btn--ghost"
+          :disabled="busy"
+          @click="emit('recapture')"
+        >
           Capture
         </button>
       </div>
     </div>
 
-    <button
-      type="button"
-      class="kam-btn kam-enrich"
-      :disabled="busy"
-      @click="onEnrich"
-    >
+    <button type="button" class="kam-btn kam-enrich" :disabled="busy" @click="onEnrich">
       {{ enrichState === 'loading' ? 'Enriching…' : `✨ Enrich with ${aiProvider || 'AI'}` }}
     </button>
 
@@ -158,7 +162,12 @@ function onSave() {
     <div v-if="saveState === 'error'" class="kam-preview__error">{{ error }}</div>
 
     <div class="kam-preview__footer">
-      <button type="button" class="kam-btn kam-btn--ghost" :disabled="busy" @click="$emit('cancel')">
+      <button
+        type="button"
+        class="kam-btn kam-btn--ghost"
+        :disabled="busy"
+        @click="$emit('cancel')"
+      >
         Cancel
       </button>
       <div class="kam-preview__save">

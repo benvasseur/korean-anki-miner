@@ -9,42 +9,42 @@ Effort estimates assume familiarity with the code. Check items off as they land.
 
 ---
 
-## Phase 1 — Test + lint foundation (~1h)
+## Phase 1 — Test + lint foundation ✅ done
 
 No test runner exists today; CI only type-checks and builds. This phase is pure setup,
 so phase 2 is just writing tests.
 
-- [ ] Add `vitest` + `happy-dom` + `@vitest/coverage-v8` as devDependencies.
-- [ ] Add `vitest.config.ts` using WXT's helper (`defineWxtVitestConfig` from
+- [x] Add `vitest` + `happy-dom` + `@vitest/coverage-v8` as devDependencies.
+- [x] Add `vitest.config.ts` using WXT's helper (`defineWxtVitestConfig` from
       `wxt/testing`) so `wxt/browser` imports and the `~/` alias resolve inside tests.
-- [ ] Add scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
-- [ ] Add ESLint (flat config) + Prettier: `eslint`, `typescript-eslint`,
+- [x] Add scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
+- [x] Add ESLint (flat config) + Prettier: `eslint`, `typescript-eslint`,
       `eslint-plugin-vue`, `prettier`, `eslint-config-prettier`. Script: `"lint"`.
-- [ ] Wire both into [.github/workflows/ci.yml](.github/workflows/ci.yml) after `compile`.
+- [x] Wire both into [.github/workflows/ci.yml](.github/workflows/ci.yml) after `compile`.
 
 **Done when:** `npm run lint && npm test` passes locally and in CI on a green push.
 
 ---
 
-## Phase 2 — Unit tests for the pure logic (~4h)
+## Phase 2 — Unit tests for the pure logic ✅ done
 
 The highest-value target: most of the tricky logic is already pure functions, so this is
 writing assertions, not refactoring. Each bullet is one test file.
 
-- [ ] `translation/deepl.test.ts` — language mapping (`ko`→`KO`, target `en`→`EN-US`,
+- [x] `translation/deepl.test.ts` — language mapping (`ko`→`KO`, target `en`→`EN-US`,
       `zh-TW`→`ZH-HANT`), free vs Pro endpoint selection from the `:fx` suffix, and the
       error mapping (401 / 429 / **456 quota** / network throw) against a mocked `fetch`.
-- [ ] `translation/papago.test.ts` — same shape: request encoding + error mapping.
-- [ ] `enrichment/mistral.test.ts` — tool-call arguments arrive as a JSON *string*;
+- [x] `translation/papago.test.ts` — same shape: request encoding + error mapping.
+- [x] `enrichment/mistral.test.ts` — tool-call arguments arrive as a JSON _string_;
       assert the parse, and that a malformed / missing tool call throws rather than
       producing a half-empty card.
-- [ ] `translation/cache.test.ts` — key includes provider + language pair; a hit under
+- [x] `translation/cache.test.ts` — key includes provider + language pair; a hit under
       one provider is a miss under the other.
-- [ ] `overlay/tokenize.test.ts` — the `RUN` / `IS_WORD` regexes from
+- [x] `overlay/tokenize.test.ts` — the `RUN` / `IS_WORD` regexes from
       [CaptionOverlay.vue:15-16](overlay/CaptionOverlay.vue#L15-L16). Extract them to
       `overlay/tokenize.ts` first. Cases: `일하고...` → `일하고`, `'일하기 / 귀찮다'`,
       combining marks, digits, mixed Latin/Hangul.
-- [ ] `overlay/capture-frame.test.ts` — `wrapLines` greedy wrapping against a stubbed
+- [x] `overlay/capture-frame.test.ts` — `wrapLines` greedy wrapping against a stubbed
       `measureText`. (Export it; it's currently module-private.)
 
 **Done when:** `npm test` covers every adapter's error paths. Coverage number is not the
@@ -52,18 +52,18 @@ point — the error paths are.
 
 ---
 
-## Phase 3 — Harden the sanitizer, then prove it (~2h)
+## Phase 3 — Harden the sanitizer, then prove it ✅ done
 
-[CardPreview.vue:8-15](overlay/CardPreview.vue#L8-L15) sanitizes model-generated HTML
-with a regex before `v-html`. It holds up under probing (allowlist-and-drop is the safe
-direction), but "I wrote my own HTML sanitizer with a regex" is a sentence you'd have to
-defend under pressure. It also matters beyond the popup: that HTML is written into the
-Anki note and rendered by Anki's webview.
+The Extra field was sanitized with a regex before `v-html`. It held up under probing
+(allowlist-and-drop is the safe direction), but "I wrote my own HTML sanitizer with a
+regex" is a sentence you'd have to defend under pressure — and it matters beyond the
+popup, since that HTML is also written into the Anki note and rendered by Anki's webview.
+Now [overlay/sanitize.ts](overlay/sanitize.ts), parser-based, with 30 attack cases.
 
-- [ ] Rewrite `sanitizeHtml` to parse instead of regex: `new DOMParser().parseFromString`,
+- [x] Rewrite `sanitizeHtml` to parse instead of regex: `new DOMParser().parseFromString`,
       walk the tree, drop non-allowlisted elements (keeping their text) and strip every
       attribute. Same allowlist (`b i u strong em br`), same signature — no caller changes.
-- [ ] `overlay/sanitize.test.ts` with adversarial input: `<img src=x onerror=alert(1)>`,
+- [x] `overlay/sanitize.test.ts` with adversarial input: `<img src=x onerror=alert(1)>`,
       `<svg/onload=alert(1)>`, `<a href="a>b" onclick=alert(1)>`, `<scr<script>ipt>`,
       unclosed tags, `<b onclick="x">keep me</b>` → `<b>keep me</b>`.
 
@@ -106,7 +106,7 @@ answer to "how do you know it works?"
 - [ ] Stub the network: intercept the DeepL/AnkiConnect calls via `page.route`, or seed
       `chrome.storage.local` with a cached translation so the click path needs no key.
 - [ ] Test the loop: overlay renders over the fixture caption → click a word → popup shows
-      the translation → *Save to Anki* opens the preview → *Save* issues the expected
+      the translation → _Save to Anki_ opens the preview → _Save_ issues the expected
       `addNote` payload.
 - [ ] Add a `e2e` job to CI (own job, `npm run build` first).
 

@@ -8,21 +8,21 @@
 ![Vue 3](https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white)
 ![WXT](https://img.shields.io/badge/WXT-0.20-67217a)
 
-Existing immersion tools (Migaku, Language Reactor) lock the core mining loop — *see a word's meaning, click, save it to Anki* — behind subscriptions and a lot of feature bloat. **Korean Anki Miner does only that loop, and does it well.** It overlays the captions on any `youtube.com/watch` page, makes every word clickable, and turns a click into an Anki card in a couple of seconds.
+Existing immersion tools (Migaku, Language Reactor) lock the core mining loop — _see a word's meaning, click, save it to Anki_ — behind subscriptions and a lot of feature bloat. **Korean Anki Miner does only that loop, and does it well.** It overlays the captions on any `youtube.com/watch` page, makes every word clickable, and turns a click into an Anki card in a couple of seconds.
 
 ## Demo
 
 ![Korean Anki Miner in action: clicking 대해서 in a YouTube caption opens the card preview, AI enrichment fills the dictionary form and explanation, and the note lands in Anki with a screenshot of the frame.](docs/demo.gif)
 
-*Click a word in the caption overlay → the card preview → **Enrich with AI** → the note in Anki, complete with the video frame and an explanation with key expressions, examples, and related words.*
+_Click a word in the caption overlay → the card preview → **Enrich with AI** → the note in Anki, complete with the video frame and an explanation with key expressions, examples, and related words._
 
 ## Features
 
 - **Interactive captions** — the native subtitle is replaced by an overlay where every word is a clickable, hover-highlighted token. Punctuation is split off so a click yields the bare word.
 - **Instant translation** — clicking a word shows a translation in an anchored popup, from your chosen provider — **[DeepL](https://www.deepl.com/pro-api) or [Papago](https://www.ncloud.com/product/aiService/papagoTranslation)**. Results are cached per provider, so repeats are instant and free, and the popup credits whichever provider answered.
-- **One-click mining** — a *Save to Anki* button opens an editable card preview (Front / Back / Extra), prefilled with the word, its translation, and the subtitle sentence, then writes the note via [AnkiConnect](https://foosoft.net/projects/anki-connect/).
+- **One-click mining** — a _Save to Anki_ button opens an editable card preview (Front / Back / Extra), prefilled with the word, its translation, and the subtitle sentence, then writes the note via [AnkiConnect](https://foosoft.net/projects/anki-connect/).
 - **Screenshot capture** — the card's Image field grabs the current video frame with the subtitle burned in, stores it through AnkiConnect, and renders it on the card. Capture happens on demand, with recapture/remove controls.
-- **Optional AI enrichment** — an *Enrich with AI* button calls your chosen provider — **Claude or Mistral** — to fill the dictionary form, a refined gloss, and a formatted explanation (key expressions, examples, related words). On-demand only, with a selectable model per provider (cheap by default, larger for quality); both share one prompt, so cards come out identical either way.
+- **Optional AI enrichment** — an _Enrich with AI_ button calls your chosen provider — **Claude or Mistral** — to fill the dictionary form, a refined gloss, and a formatted explanation (key expressions, examples, related words). On-demand only, with a selectable model per provider (cheap by default, larger for quality); both share one prompt, so cards come out identical either way.
 - **Survives YouTube's SPA navigation**, isolates itself in a Shadow DOM, and keeps every secret and network call out of the page.
 
 ## How it works
@@ -45,10 +45,10 @@ flowchart LR
 
 A deliberate **two-path split** sits behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`):
 
-| Path | Provider | When | Why |
-| --- | --- | --- | --- |
-| **Translation** (click) | DeepL or Papago | Nearly every word | Optimized for latency/cost; DeepL's free tier (500k chars/month) is effectively unlimited at single-word volume |
-| **Enrichment** (save) | Claude or Mistral | Only when *Enrich* is clicked | Rich, structured output; kept rare and on-demand so it stays cheap |
+| Path                    | Provider          | When                          | Why                                                                                                             |
+| ----------------------- | ----------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Translation** (click) | DeepL or Papago   | Nearly every word             | Optimized for latency/cost; DeepL's free tier (500k chars/month) is effectively unlimited at single-word volume |
+| **Enrichment** (save)   | Claude or Mistral | Only when _Enrich_ is clicked | Rich, structured output; kept rare and on-demand so it stays cheap                                              |
 
 ## Tech stack
 
@@ -63,8 +63,8 @@ A deliberate **two-path split** sits behind small adapter interfaces (`Translati
 - **Google Chrome** (or any Chromium browser — Edge, Brave)
 - **[Anki](https://apps.ankiweb.net/)** with the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on
 - A translation API key — either a **[DeepL API](https://www.deepl.com/pro-api)** key (Free or Pro; the Free plan's 500,000 characters/month is plenty) or a **Naver Cloud Platform** [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
-- *(optional)* an **[Anthropic](https://console.anthropic.com/)** or **[Mistral](https://console.mistral.ai/)** API key for AI enrichment
-- *(only for building from source — Option B)* **Node.js 20+** and npm
+- _(optional)_ an **[Anthropic](https://console.anthropic.com/)** or **[Mistral](https://console.mistral.ai/)** API key for AI enrichment
+- _(only for building from source — Option B)_ **Node.js 20+** and npm
 
 ### Install
 
@@ -92,16 +92,16 @@ For development with hot-reload, use `npm run dev` instead (it builds to the sam
 
 ### Configure
 
-Open the extension's **Options** page (right-click the icon → *Options*) and fill in:
+Open the extension's **Options** page (right-click the icon → _Options_) and fill in:
 
 1. **Translation:** pick a provider — **DeepL** (paste the API key; Free keys end in `:fx` and are routed to the free endpoint automatically) or **Papago** (Client ID + Secret) — and the language pair (default `Korean → English`).
 2. **Anki:** let Anki talk to the extension by adding its origin to AnkiConnect's CORS allowlist —
-   Anki → *Tools → Add-ons → AnkiConnect → Config*:
+   Anki → _Tools → Add-ons → AnkiConnect → Config_:
    ```json
    { "webCorsOriginList": ["http://localhost", "chrome-extension://<your-extension-id>"] }
    ```
    Restart Anki, then pick your **deck**, **note type**, and map the **Front / Back / Extra** fields.
-3. **Enrichment — AI** *(optional):* pick a provider (Claude or Mistral), then its API key and the model to use.
+3. **Enrichment — AI** _(optional):_ pick a provider (Claude or Mistral), then its API key and the model to use.
 
 ### Use it
 
@@ -115,24 +115,45 @@ entrypoints/
   youtube.content.ts     # content script — mounts the Shadow-DOM overlay on watch pages
   options/               # Vue options page (translation / Anki / enrichment config)
 overlay/                 # in-page Vue UI: caption overlay, word popup, editable card preview
+                         #   + pure modules: tokenize, sanitize, frame capture
 translation/             # TranslationProvider + DeepL/Papago adapters + surface-form cache
 enrichment/              # EnrichmentProvider + Claude/Mistral adapters + shared prompt
 anki/                    # AnkiConnect adapter (deckNames / modelFieldNames / addNote)
 config/                  # typed chrome.storage items (sync prefs, local keys)
+*.test.ts                # unit tests, next to the module they cover
 wxt.config.ts            # manifest, permissions, host_permissions
 ```
 
 ## Development
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Build + launch Chrome with HMR |
-| `npm run build` | Production build to `.output/chrome-mv3` |
-| `npm run compile` | Type-check with `vue-tsc` |
-| `npm run zip` | Package a distributable zip |
+| Command           | Description                              |
+| ----------------- | ---------------------------------------- |
+| `npm run dev`     | Build + launch Chrome with HMR           |
+| `npm run build`   | Production build to `.output/chrome-mv3` |
+| `npm run compile` | Type-check with `vue-tsc`                |
+| `npm test`        | Run the unit tests (Vitest)              |
+| `npm run lint`    | ESLint + Prettier check                  |
+| `npm run zip`     | Package a distributable zip              |
 
-Every push and PR runs CI (type-check + build). To **cut a release**, bump `version` in `package.json`,
-commit, then tag it:
+### Testing
+
+Vitest with `happy-dom`, plus WXT's `fakeBrowser` so modules that touch `chrome.storage`
+run against a real in-memory implementation rather than a hand-written stub. What's covered:
+
+- **Provider adapters** — request shape and, especially, the error mapping: DeepL's free
+  vs Pro host selection from the `:fx` key suffix, its language-code mapping (`en` → `EN-US`
+  as a target, plain `EN` as a source), and 401 / 429 / **456 quota** / network failures for
+  each provider. A mocked `fetch` stands in for the API.
+- **The sanitizer** — [`overlay/sanitize.test.ts`](overlay/sanitize.test.ts) is an attack
+  list. The Extra field is model-generated HTML rendered with `v-html` _and_ written into an
+  Anki note, so anything that survives sanitizing executes in two script-capable contexts;
+  the tests assert that event handlers, `javascript:` URLs, `<script>`, and malformed markup
+  all come out inert.
+- **Caption tokenizing** — Hangul with combining marks, punctuation runs, mixed scripts.
+- **Translation cache** — keyed by provider + language pair + surface form.
+
+Every push and PR runs CI (lint + type-check + tests + build). To **cut a release**, bump
+`version` in `package.json`, commit, then tag it:
 
 ```bash
 git tag v0.1.0 && git push --tags
