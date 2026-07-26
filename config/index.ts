@@ -13,8 +13,9 @@ import { storage } from 'wxt/utils/storage';
 /** Which backend the click path translates with. */
 export type TranslationProviderId = 'deepl' | 'papago';
 
-// DeepL is the default: its free tier (a one-time 1M characters) covers
-// hundreds of thousands of single-word clicks, where Papago's is metered.
+// DeepL is the default: its free tier (1M characters, lifetime — it does not
+// reset) covers hundreds of thousands of single-word clicks, where Papago's
+// allowance is metered per month.
 export const translationProvider = storage.defineItem<TranslationProviderId>(
   'sync:translationProvider',
   { fallback: 'deepl' },

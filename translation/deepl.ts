@@ -10,8 +10,8 @@ interface DeeplResponse {
 }
 
 /** DeepL API adapter (v2). Like Papago it holds the key, so it runs in the
- *  service worker only. The free tier's one-time 1M characters go a long way
- *  when each request is a single word. */
+ *  service worker only. The free tier's 1M characters are a lifetime limit, not
+ *  a monthly one — but each request is a single word, so it goes a long way. */
 export class DeeplProvider implements TranslationProvider {
   constructor(private readonly apiKey: string) {}
 

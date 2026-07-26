@@ -185,7 +185,7 @@ async function save() {
           <template v-if="form.translateProvider === 'deepl'">
             <p class="hint">
               A DeepL API key, Free or Pro — keys ending in <code>:fx</code> are routed to the free
-              endpoint automatically. The Free plan's one-time 1M-character allowance goes a long
+              endpoint automatically. The Free plan's lifetime limit of 1M characters goes a long
               way at a few characters per click.
             </p>
 

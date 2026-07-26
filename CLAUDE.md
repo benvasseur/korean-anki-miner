@@ -35,7 +35,7 @@ Two API paths with different latency/cost profiles:
 
 - **Translation (click path)** — user-selectable in Options: DeepL (default) or Papago (Naver Cloud
   Platform). Fires on nearly every word, so it is optimized for latency and cost. DeepL API Free gives
-  a one-time 1M-character allowance — at a few characters per click that is hundreds of thousands of
+  a lifetime limit of 1M characters — at a few characters per click that is hundreds of thousands of
   lookups, and cheaper than Papago's metered tier; its adapter routes free keys (suffix `:fx`) to `api-free.deepl.com` and Pro keys to
   `api.deepl.com`, and maps our lowercase language codes to DeepL's uppercase ones (variants like
   `EN-US` / `ZH-HANS` are target-only). Either provider returns translated text only (no lemma).
