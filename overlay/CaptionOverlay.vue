@@ -3,7 +3,13 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { captionText } from './caption-store';
 import { requestTranslation } from '../translation/messages';
 import { openOptions, saveNote } from '../anki/messages';
-import { ankiConfig, type AnkiConfig } from '../config';
+import {
+  ankiConfig,
+  enrichmentProvider,
+  enrichmentProviderName,
+  translationProviderName,
+  type AnkiConfig,
+} from '../config';
 import { captureVideoFrame } from './capture-frame';
 import CardPreview from './CardPreview.vue';
 import WordPopup from './WordPopup.vue';
@@ -39,9 +45,15 @@ const selected = ref<{
   left: number;
   top: number;
 } | null>(null);
-const result = reactive<{ state: 'loading' | 'done' | 'error'; text: string }>({
+const result = reactive<{
+  state: 'loading' | 'done' | 'error';
+  text: string;
+  /** Short name of the provider that returned `text`, for the attribution tag. */
+  provider: string;
+}>({
   state: 'loading',
   text: '',
+  provider: '',
 });
 
 const mode = ref<'translation' | 'preview'>('translation');
@@ -54,6 +66,11 @@ const saveError = ref('');
 const anki = reactive({ configured: false, extraMapped: false, imageMapped: false });
 let unwatchAnki: (() => void) | undefined;
 
+// Names the Enrich button ("Enrich with Claude"). Watched for the same reason:
+// switching provider in Options should show up without reloading the tab.
+const aiProvider = ref('');
+let unwatchAi: (() => void) | undefined;
+
 function applyAnkiConfig(cfg: AnkiConfig) {
   anki.configured = Boolean(cfg.deck && cfg.model && cfg.fields.front && cfg.fields.back);
   anki.extraMapped = Boolean(cfg.fields.extra);
@@ -63,9 +80,17 @@ function applyAnkiConfig(cfg: AnkiConfig) {
 // --- Popup placement -------------------------------------------------------
 // Centre the popup on the word, then clamp it inside the player and flip below
 // when there isn't room above. The arrow keeps pointing at the word.
-const popupStyle = reactive<{ left: string; top: string; visibility: 'hidden' | 'visible' }>({
+const popupStyle = reactive<{
+  left: string;
+  top: string;
+  maxWidth: string;
+  maxHeight: string;
+  visibility: 'hidden' | 'visible';
+}>({
   left: '0px',
   top: '0px',
+  maxWidth: '',
+  maxHeight: '',
   visibility: 'hidden',
 });
 const arrowStyle = reactive<{ left: string }>({ left: '50%' });
@@ -86,6 +111,29 @@ function positionPopup() {
   const rootRect = root.getBoundingClientRect();
   const pw = popup.offsetWidth;
   const ph = popup.offsetHeight;
+
+  // The card preview is a form, not a pointer: anchoring it to the word buys
+  // nothing and makes it overflow a short player (it can't fit above or below).
+  // Centre it in the player instead, capped to the player height so it scrolls
+  // internally rather than being clipped by the player's own overflow.
+  if (mode.value === 'preview') {
+    // Cap to the player in both axes (a 600px sheet doesn't fit a mini player),
+    // and centre using the capped width so it lands right on the first pass.
+    const maxW = bounds.width - POPUP_MARGIN * 2;
+    const w = Math.min(pw, maxW);
+    const leftVp = bounds.left + (bounds.width - w) / 2;
+    const topVp = bounds.top + Math.max((bounds.height - ph) / 2, POPUP_MARGIN);
+    popupStyle.left = `${Math.round(leftVp - rootRect.left)}px`;
+    popupStyle.top = `${Math.round(topVp - rootRect.top)}px`;
+    popupStyle.maxWidth = `${Math.round(maxW)}px`;
+    popupStyle.maxHeight = `${Math.round(bounds.height - POPUP_MARGIN * 2)}px`;
+    popupStyle.visibility = 'visible';
+    showArrow.value = false;
+    return;
+  }
+  // The arrow hangs outside the box, so the translation popup is never capped.
+  popupStyle.maxWidth = '';
+  popupStyle.maxHeight = '';
 
   const wordCenterX = rootRect.left + sel.left;
   const wordTopY = rootRect.top + sel.top;
@@ -124,9 +172,11 @@ watch(popupEl, (el) => {
     resizeObserver.observe(el);
   }
 });
-watch(selected, async (sel) => {
+watch([selected, mode], async ([sel]) => {
   if (!sel) return;
-  popupStyle.visibility = 'hidden'; // avoid a flash at the previous spot
+  // Also covers translation↔preview, which moves the popup from anchored to
+  // centred: hide first so it doesn't flash at the previous spot.
+  popupStyle.visibility = 'hidden';
   await nextTick();
   positionPopup();
 });
@@ -163,11 +213,13 @@ async function onWordClick(ti: number, si: number, word: string, event: MouseEve
   const id = ++requestId;
   result.state = 'loading';
   result.text = '';
+  result.provider = '';
   const response = await requestTranslation(word);
   if (id !== requestId) return; // superseded by a newer click/dismiss
   if (response.ok) {
     result.state = 'done';
     result.text = response.translation;
+    result.provider = translationProviderName(response.provider);
   } else {
     result.state = 'error';
     result.text = response.error;
@@ -253,6 +305,8 @@ onMounted(async () => {
   document.addEventListener('fullscreenchange', dismiss);
   applyAnkiConfig(await ankiConfig.getValue());
   unwatchAnki = ankiConfig.watch(applyAnkiConfig);
+  aiProvider.value = enrichmentProviderName(await enrichmentProvider.getValue());
+  unwatchAi = enrichmentProvider.watch((id) => (aiProvider.value = enrichmentProviderName(id)));
 });
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true);
@@ -261,6 +315,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', dismiss);
   resizeObserver?.disconnect();
   unwatchAnki?.();
+  unwatchAi?.();
 });
 </script>
 
@@ -293,6 +348,7 @@ onBeforeUnmount(() => {
         :word="selected.word"
         :state="result.state"
         :text="result.text"
+        :provider="result.provider"
         :configured="anki.configured"
         @save-to-anki="openPreview"
         @open-options="openOptions"
@@ -305,6 +361,7 @@ onBeforeUnmount(() => {
         :back="card.back"
         :extra="card.extra"
         :image="card.image"
+        :ai-provider="aiProvider"
         :show-extra="anki.extraMapped"
         :show-image="anki.imageMapped"
         :save-state="saveState"
@@ -400,6 +457,12 @@ onBeforeUnmount(() => {
      width, capped to the viewport. */
   width: 600px;
   max-width: 90vw;
+  /* JS caps the height to the player; scroll inside rather than overflow it.
+     Safe here only because the preview never renders the arrow, which hangs
+     outside the box and would be clipped. `contain` stops the scroll chaining
+     to the YouTube page once the sheet hits its end. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .kam-popup__arrow {

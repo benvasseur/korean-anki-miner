@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import ProviderTag from './ProviderTag.vue';
+
 // Translation view. The positioned shell + arrow live in CaptionOverlay so this
 // and the card preview can share one anchored wrapper.
 defineProps<{
   word: string;
   state: 'loading' | 'done' | 'error';
   text: string;
+  /** Short name of the provider that returned `text`; '' until one has. */
+  provider: string;
   configured: boolean;
 }>();
 
@@ -20,6 +24,8 @@ defineEmits<{
     <div v-if="state === 'loading'" class="kam-muted">Translating…</div>
     <div v-else-if="state === 'error'" class="kam-error">{{ text }}</div>
     <div v-else class="kam-translation">{{ text }}</div>
+
+    <ProviderTag v-if="state === 'done' && provider" kind="translation" :name="provider" />
 
     <div v-if="state === 'done'" class="kam-actions">
       <button

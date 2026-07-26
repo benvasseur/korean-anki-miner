@@ -23,6 +23,8 @@ const props = defineProps<{
   back: string;
   extra: string;
   image: string; // data URL of the captured frame, '' when none; owned by the parent
+  /** Short name of the configured AI provider, for the Enrich button label. */
+  aiProvider: string;
   showExtra: boolean;
   showImage: boolean;
   saveState: 'idle' | 'saving' | 'saved' | 'error';
@@ -63,7 +65,7 @@ async function onEnrich() {
   if (busy.value) return;
   enrichState.value = 'loading';
   enrichError.value = '';
-  // The worker owns the Claude call; we pass the original word + sentence as
+  // The worker owns the AI call; we pass the original word + sentence as
   // context and write the result back into the editable fields.
   const res = await requestEnrichment(props.word, props.sentence, back.value);
   if (res.ok) {
@@ -149,7 +151,7 @@ function onSave() {
       :disabled="busy"
       @click="onEnrich"
     >
-      {{ enrichState === 'loading' ? 'Enriching…' : '✨ Enrich with AI' }}
+      {{ enrichState === 'loading' ? 'Enriching…' : `✨ Enrich with ${aiProvider || 'AI'}` }}
     </button>
 
     <div v-if="enrichState === 'error'" class="kam-preview__error">{{ enrichError }}</div>
@@ -216,7 +218,9 @@ function onSave() {
 /* Rendered (read) view of the Extra HTML — styled like the inputs, scrollable. */
 .kam-extra {
   box-sizing: border-box;
-  max-height: 220px;
+  /* Deliberately capped rather than left to grow: a long enriched Extra would
+     otherwise push Cancel/Save off the bottom of the sheet. */
+  max-height: 160px;
   overflow-y: auto;
   padding: 6px 8px;
   border: 1px solid #3a4150;
@@ -249,9 +253,13 @@ function onSave() {
   gap: 6px;
 }
 
+/* At the sheet's full 600px width a 16:9 frame eats ~330px of height. Cap the
+   width instead of cropping — the burned-in subtitle is half the point of the
+   thumbnail, so it has to stay whole and legible. */
 .kam-image__thumb {
   display: block;
   width: 100%;
+  max-width: 280px;
   border-radius: 6px;
   border: 1px solid #3a4150;
 }
