@@ -12,14 +12,14 @@ Existing immersion tools (Migaku, Language Reactor) lock the core mining loop �
 
 ## Demo
 
-![Korean Anki Miner in action: clicking 나라에 on a YouTube video shows a translation popup, and the resulting Anki card carries a screenshot (with the subtitle burned in) plus an AI-enriched explanation.](docs/demo.png)
+![Korean Anki Miner in action: clicking 대해서 in a YouTube caption opens the card preview, AI enrichment fills the dictionary form and explanation, and the note lands in Anki with a screenshot of the frame.](docs/demo.gif)
 
-*Click a word in the caption overlay → the translation popup → the saved Anki card, enriched with key expressions, examples, and related words.*
+*Click a word in the caption overlay → the card preview → **Enrich with AI** → the note in Anki, complete with the video frame and an explanation with key expressions, examples, and related words.*
 
 ## Features
 
 - **Interactive captions** — the native subtitle is replaced by an overlay where every word is a clickable, hover-highlighted token. Punctuation is split off so a click yields the bare word.
-- **Instant translation** — clicking a word shows a [Papago](https://www.ncloud.com/product/aiService/papagoTranslation) translation in an anchored popup. Results are cached, so repeats are instant and free.
+- **Instant translation** — clicking a word shows a translation in an anchored popup, from your chosen provider — **[DeepL](https://www.deepl.com/pro-api) or [Papago](https://www.ncloud.com/product/aiService/papagoTranslation)**. Results are cached per provider, so repeats are instant and free, and the popup credits whichever provider answered.
 - **One-click mining** — a *Save to Anki* button opens an editable card preview (Front / Back / Extra), prefilled with the word, its translation, and the subtitle sentence, then writes the note via [AnkiConnect](https://foosoft.net/projects/anki-connect/).
 - **Screenshot capture** — the card's Image field grabs the current video frame with the subtitle burned in, stores it through AnkiConnect, and renders it on the card. Capture happens on demand, with recapture/remove controls.
 - **Optional AI enrichment** — an *Enrich with AI* button calls your chosen provider — **Claude or Mistral** — to fill the dictionary form, a refined gloss, and a formatted explanation (key expressions, examples, related words). On-demand only, with a selectable model per provider (cheap by default, larger for quality); both share one prompt, so cards come out identical either way.
@@ -38,7 +38,7 @@ flowchart LR
     sw["Service worker<br/>all network + secrets"]
   end
   cs -- "chrome.runtime messages" --> sw
-  sw -- "translate" --> papago[("Papago<br/>Naver Cloud")]
+  sw -- "translate" --> tr[("Translation provider<br/>DeepL / Papago")]
   sw -- "enrich (on demand)" --> ai[("AI provider<br/>Claude / Mistral")]
   sw -- "addNote / deckNames…" --> anki[("AnkiConnect<br/>127.0.0.1:8765")]
 ```
@@ -47,14 +47,14 @@ A deliberate **two-path split** sits behind small adapter interfaces (`Translati
 
 | Path | Provider | When | Why |
 | --- | --- | --- | --- |
-| **Translation** (click) | Papago | Nearly every word | Optimized for latency/cost; best-in-class for Korean; free at single-word volume |
+| **Translation** (click) | DeepL or Papago | Nearly every word | Optimized for latency/cost; DeepL's free tier (500k chars/month) is effectively unlimited at single-word volume |
 | **Enrichment** (save) | Claude or Mistral | Only when *Enrich* is clicked | Rich, structured output; kept rare and on-demand so it stays cheap |
 
 ## Tech stack
 
 - **[WXT](https://wxt.dev)** — Manifest V3 extension framework (HMR, manifest generation, first-class Vue).
 - **Vue 3** (Composition API) + **TypeScript** — overlay, popup, and options page.
-- **Anthropic SDK** for Claude enrichment; raw `fetch` adapters for Mistral, Papago, and AnkiConnect.
+- **Anthropic SDK** for Claude enrichment; raw `fetch` adapters for Mistral, DeepL, Papago, and AnkiConnect.
 
 ## Getting started
 
@@ -62,7 +62,7 @@ A deliberate **two-path split** sits behind small adapter interfaces (`Translati
 
 - **Google Chrome** (or any Chromium browser — Edge, Brave)
 - **[Anki](https://apps.ankiweb.net/)** with the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on
-- A **Naver Cloud Platform** account with a [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
+- A translation API key — either a **[DeepL API](https://www.deepl.com/pro-api)** key (Free or Pro; the Free plan's 500,000 characters/month is plenty) or a **Naver Cloud Platform** [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
 - *(optional)* an **[Anthropic](https://console.anthropic.com/)** or **[Mistral](https://console.mistral.ai/)** API key for AI enrichment
 - *(only for building from source — Option B)* **Node.js 20+** and npm
 
@@ -94,7 +94,7 @@ For development with hot-reload, use `npm run dev` instead (it builds to the sam
 
 Open the extension's **Options** page (right-click the icon → *Options*) and fill in:
 
-1. **Translation — Papago:** your Client ID and Secret, and the language pair (default `Korean → English`).
+1. **Translation:** pick a provider — **DeepL** (paste the API key; Free keys end in `:fx` and are routed to the free endpoint automatically) or **Papago** (Client ID + Secret) — and the language pair (default `Korean → English`).
 2. **Anki:** let Anki talk to the extension by adding its origin to AnkiConnect's CORS allowlist —
    Anki → *Tools → Add-ons → AnkiConnect → Config*:
    ```json
@@ -113,9 +113,9 @@ Open any Korean video with captions on, turn on **CC**, then **click a word** �
 entrypoints/
   background.ts          # service worker — message router; all network lives here
   youtube.content.ts     # content script — mounts the Shadow-DOM overlay on watch pages
-  options/               # Vue options page (Papago / Anki / Claude config)
+  options/               # Vue options page (translation / Anki / enrichment config)
 overlay/                 # in-page Vue UI: caption overlay, word popup, editable card preview
-translation/             # TranslationProvider + Papago adapter + surface-form cache
+translation/             # TranslationProvider + DeepL/Papago adapters + surface-form cache
 enrichment/              # EnrichmentProvider + Claude/Mistral adapters + shared prompt
 anki/                    # AnkiConnect adapter (deckNames / modelFieldNames / addNote)
 config/                  # typed chrome.storage items (sync prefs, local keys)
@@ -152,7 +152,8 @@ A few decisions worth calling out:
 
 ## Roadmap
 
-- [ ] **More translation providers** — a second `TranslationProvider` (e.g. DeepL or Google) so the click path isn't tied to Papago, selectable in Options.
+- [ ] **Google Translate as a translation provider** — a third `TranslationProvider` (Cloud Translation API v2) alongside DeepL and Papago; needs a Google Cloud API key and `host_permissions` for `translation.googleapis.com`.
+- [ ] **ChatGPT as an enrichment provider** — a third `EnrichmentProvider` (OpenAI chat completions, forced tool call for structured output) reusing the shared `enrichment/prompt.ts`, so cards come out identical to the Claude/Mistral ones.
 - [ ] **Firefox support** — add WXT's `firefox` target (MV2 background page; add the `moz-extension://…` origin to AnkiConnect's CORS allowlist).
 - [ ] **Safari support** — WXT can target Safari (dedicated runner, MV2 manifest); packaging needs macOS + Xcode's web-extension converter.
 - [ ] **Publish to the extension stores** — signed builds on the Chrome Web Store / Firefox Add-ons instead of load-unpacked, for auto-update and no developer-mode prompt.
