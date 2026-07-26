@@ -10,8 +10,8 @@ interface DeeplResponse {
 }
 
 /** DeepL API adapter (v2). Like Papago it holds the key, so it runs in the
- *  service worker only. The free tier allows 500k characters/month, which is
- *  effectively unlimited at single-word volume. */
+ *  service worker only. The free tier's one-time 1M characters go a long way
+ *  when each request is a single word. */
 export class DeeplProvider implements TranslationProvider {
   constructor(private readonly apiKey: string) {}
 
@@ -77,7 +77,7 @@ function errorMessage(status: number): string {
     return 'DeepL rate limit reached. Try again shortly.';
   }
   if (status === 456) {
-    return 'DeepL character quota for this billing period is used up.';
+    return 'DeepL character quota is used up — check usage in your DeepL account.';
   }
   return `DeepL request failed (HTTP ${status}).`;
 }

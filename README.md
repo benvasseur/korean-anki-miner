@@ -45,10 +45,10 @@ flowchart LR
 
 A deliberate **two-path split** sits behind small adapter interfaces (`TranslationProvider`, `EnrichmentProvider`):
 
-| Path                    | Provider          | When                          | Why                                                                                                             |
-| ----------------------- | ----------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Translation** (click) | DeepL or Papago   | Nearly every word             | Optimized for latency/cost; DeepL's free tier (500k chars/month) is effectively unlimited at single-word volume |
-| **Enrichment** (save)   | Claude or Mistral | Only when _Enrich_ is clicked | Rich, structured output; kept rare and on-demand so it stays cheap                                              |
+| Path                    | Provider          | When                          | Why                                                                                                            |
+| ----------------------- | ----------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Translation** (click) | DeepL or Papago   | Nearly every word             | Optimized for latency/cost; DeepL's free tier (1M characters, one-time) covers hundreds of thousands of clicks |
+| **Enrichment** (save)   | Claude or Mistral | Only when _Enrich_ is clicked | Rich, structured output; kept rare and on-demand so it stays cheap                                             |
 
 ## Tech stack
 
@@ -62,7 +62,7 @@ A deliberate **two-path split** sits behind small adapter interfaces (`Translati
 
 - **Google Chrome** (or any Chromium browser — Edge, Brave)
 - **[Anki](https://apps.ankiweb.net/)** with the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on
-- A translation API key — either a **[DeepL API](https://www.deepl.com/pro-api)** key (Free or Pro; the Free plan's 500,000 characters/month is plenty) or a **Naver Cloud Platform** [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
+- A translation API key — either a **[DeepL API](https://www.deepl.com/pro-api)** key (Free or Pro; the Free plan's one-time 1M-character allowance goes a long way at a few characters per click) or a **Naver Cloud Platform** [Papago Translation](https://www.ncloud.com/product/aiService/papagoTranslation) application (Client ID + Secret)
 - _(optional)_ an **[Anthropic](https://console.anthropic.com/)** or **[Mistral](https://console.mistral.ai/)** API key for AI enrichment
 - _(only for building from source — Option B)_ **Node.js 20+** and npm
 
