@@ -173,7 +173,7 @@ A few decisions worth calling out:
 
 - [ ] **Google Translate as a translation provider** — a third `TranslationProvider` (Cloud Translation API v2) alongside DeepL and Papago; needs a Google Cloud API key and `host_permissions` for `translation.googleapis.com`.
 - [ ] **ChatGPT as an enrichment provider** — a third `EnrichmentProvider` (OpenAI chat completions, forced tool call for structured output) reusing the shared `enrichment/prompt.ts`, so cards come out identical to the Claude/Mistral ones.
-- [ ] **Firefox support** — add WXT's `firefox` target (MV2 background page; add the `moz-extension://…` origin to AnkiConnect's CORS allowlist).
+- [x] **Firefox support** — `npm run build:firefox` targets MV3 (event page, not a service worker). Firefox treats MV3 host permissions as optional, so Options asks for them; no AnkiConnect CORS change is needed on either browser.
 - [ ] **Safari support** — WXT can target Safari (dedicated runner, MV2 manifest); packaging needs macOS + Xcode's web-extension converter.
 - [ ] **Publish to the extension stores** — signed builds on the Chrome Web Store / Firefox Add-ons instead of load-unpacked, for auto-update and no developer-mode prompt.
 - [ ] Nicer duplicate handling (`canAddNotes` pre-check + "add anyway").

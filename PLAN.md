@@ -133,10 +133,13 @@ Small, visible, and each one is a thing an interviewer can ask "what happens if�
 
 ## Phase 7 — Bundle diet (~2h)
 
-`npm run build` prints five `node:fs` / `node:path` externalization warnings and produces a
-**174KB** background bundle, almost all of it `@anthropic-ai/sdk` — for one HTTP call that
-the Mistral adapter does in ~10KB with raw `fetch`. Warnings in your own build output are
-the kind of thing an interviewer reads out loud.
+The background bundle is **206KB**, almost all of it `@anthropic-ai/sdk` — for one HTTP
+call that the Mistral adapter does in ~10KB with raw `fetch`.
+
+The five `node:fs` / `node:path` externalization warnings this phase originally called out
+are **already gone**, cleared by the 2026-09-14 dependency upgrade rather than by anything
+here. The size half went the other way in the same upgrade: 174KB → 206KB, as the SDK moved
+0.104 → 0.125. So the measured win is now larger than when this was written.
 
 - [ ] Rewrite `enrichment/claude.ts` as a raw-fetch adapter against
       `POST https://api.anthropic.com/v1/messages` (forced `tool_choice`, same shared
@@ -144,8 +147,10 @@ the kind of thing an interviewer reads out loud.
 - [ ] Drop the `@anthropic-ai/sdk` dependency.
 - [ ] Record the before/after bundle size in the commit message — a measured number is
       worth more than the change itself.
+- [ ] Add `enrichment/claude.test.ts` while the adapter is being rewritten — it is the only
+      provider with no test, and a raw-fetch shape makes it as testable as the Mistral one.
 
-**Done when:** the build is warning-free and the background bundle is under ~20KB.
+**Done when:** the background bundle is under ~20KB.
 
 ---
 
@@ -174,9 +179,43 @@ the kind of thing an interviewer reads out loud.
       `pot`-token dead end, the `:host { all: initial }` fight with WXT's reset, coalescing
       the caption MutationObserver to one read per animation frame, and the tainted-canvas
       fallback for DRM content. The hardest problems solved here are currently invisible to
-      anyone who does not read the source.
+      anyone who does not read the source. Two more from the Firefox port: - **The AnkiConnect CORS step that was never needed.** This repo's own README and
+      CLAUDE.md prescribed adding the extension origin to `webCorsOriginList` for years.
+      Testing on Firefox showed it works untouched; AnkiConnect's `allowOrigin` explains
+      why twice over (a request with no `Origin` is allowed outright, and the default
+      `http://localhost` entry already admits extension origins). The architecture note
+      "all network lives in the background" is what made it unnecessary — background
+      fetches under host permissions bypass CORS and send no `Origin`. The best version
+      of this story is that documentation lost to a test, not that the fix was clever. - **Firefox silently drops match patterns containing a port.** `http://127.0.0.1:8765/*`
+      is valid on Chrome and ignored entirely on Firefox (bug 1362809) — no error, just no
+      host permission, so every Anki call would fail with a misleading "Anki is not
+      reachable". The Firefox target uses the portless form.
 - [ ] Add a `## Testing` section once phases 2 and 5 land — what is tested at which level,
       and why E2E runs against a fixture rather than youtube.com.
+
+---
+
+## Phase 10 — Firefox + distribution
+
+The port landed 2026-09-14: MV3 on both browsers, gecko settings, a per-browser AnkiConnect
+origin, a host-permission grant step in Options (Firefox treats MV3 host permissions as
+optional), plus the toolbar button and icon set. CI builds both targets and the release
+workflow ships both zips.
+
+- [x] Firefox build target (`npm run dev:firefox` / `build:firefox` / `zip:firefox`).
+- [x] Toolbar button + icon set — without an `action` the add-on was greyed out and
+      unpinnable in both browsers, and shipped no icon art at all.
+- [ ] **Decide the distribution goal, because the two answers diverge.** An _unlisted_
+      AMO add-on is signed and self-installable in normal Firefox but invisible to everyone
+      else — good for daily use, worth nothing as a portfolio artifact. Only a _listed_
+      add-on is publicly demonstrable. Pick before spending effort: - Unlisted: `web-ext sign --channel=unlisted`, automated validation, minutes. - Listed: source zip upload (Vite bundles the code — already configured, with
+      `INTERVIEW.md` / `PLAN.md` / `docs/` excluded), plus a privacy policy, since the
+      manifest declares `data_collection_permissions: ['websiteContent']`.
+- [ ] Verify against current store policy before submitting anywhere — the Chrome Web Store
+      has no rule against YouTube extensions (Migaku and Language Reactor both ship there
+      doing this), but Google is less predictable about its own properties, and the
+      `http://127.0.0.1` AnkiConnect call is the part most likely to draw a reviewer
+      question on either store. Explain it plainly in the listing.
 
 ---
 
