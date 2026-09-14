@@ -62,7 +62,8 @@ const TARGET_VARIANTS: Readonly<Record<string, string>> = {
 };
 
 function sourceLang(code: string): string {
-  return code.split('-')[0].toUpperCase();
+  // split() on a non-empty separator always yields at least one element.
+  return code.split('-')[0]!.toUpperCase();
 }
 
 function targetLang(code: string): string {

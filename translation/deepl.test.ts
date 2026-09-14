@@ -12,7 +12,7 @@ function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown>
 
 /** The request body the adapter sent, parsed. */
 function sentBody(fetchMock: ReturnType<typeof vi.fn>) {
-  return JSON.parse(fetchMock.mock.calls[0][1].body as string);
+  return JSON.parse(fetchMock.mock.calls[0]![1].body as string);
 }
 
 function ok(text: string) {
@@ -31,19 +31,19 @@ describe('DeeplProvider', () => {
     it('routes a Free key (:fx suffix) to the free host', async () => {
       const fetchMock = mockFetch(ok('item'));
       await new DeeplProvider(FREE_KEY).translate({ text: '아이템', source: 'ko', target: 'en' });
-      expect(fetchMock.mock.calls[0][0]).toBe('https://api-free.deepl.com/v2/translate');
+      expect(fetchMock.mock.calls[0]![0]).toBe('https://api-free.deepl.com/v2/translate');
     });
 
     it('routes a Pro key to the paid host', async () => {
       const fetchMock = mockFetch(ok('item'));
       await new DeeplProvider(PRO_KEY).translate({ text: '아이템', source: 'ko', target: 'en' });
-      expect(fetchMock.mock.calls[0][0]).toBe('https://api.deepl.com/v2/translate');
+      expect(fetchMock.mock.calls[0]![0]).toBe('https://api.deepl.com/v2/translate');
     });
 
     it('sends the key as a DeepL-Auth-Key header', async () => {
       const fetchMock = mockFetch(ok('item'));
       await new DeeplProvider(FREE_KEY).translate({ text: '아이템', source: 'ko', target: 'en' });
-      expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(`DeepL-Auth-Key ${FREE_KEY}`);
+      expect(fetchMock.mock.calls[0]![1].headers.Authorization).toBe(`DeepL-Auth-Key ${FREE_KEY}`);
     });
   });
 

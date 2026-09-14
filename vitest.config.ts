@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { WxtVitest } from 'wxt/testing';
+import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 // WxtVitest wires up the same aliases and globals the extension gets at build
 // time, and swaps `wxt/browser` for @webext-core/fake-browser — so modules that

@@ -49,7 +49,7 @@ describe('MistralProvider', () => {
     const fetchMock = mockFetch(toolCall(CARD));
     await enrich();
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
     expect(body.tool_choice).toBe('any');
     expect(body.tools[0].function.name).toBe(CARD_TOOL_NAME);
     expect(body.model).toBe('mistral-small-latest');
@@ -59,7 +59,7 @@ describe('MistralProvider', () => {
     const fetchMock = mockFetch(toolCall(CARD));
     await enrich();
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
     expect(body.messages[1].content).toContain(REQUEST.word);
     expect(body.messages[1].content).toContain(REQUEST.sentence);
   });
@@ -67,7 +67,7 @@ describe('MistralProvider', () => {
   it('authenticates with a bearer token', async () => {
     const fetchMock = mockFetch(toolCall(CARD));
     await enrich();
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer key-1');
+    expect(fetchMock.mock.calls[0]![1].headers.Authorization).toBe('Bearer key-1');
   });
 
   describe('rejects anything that would produce a half-empty card', () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { getCachedTranslation, setCachedTranslation } from './cache';
 
 // fakeBrowser gives a real in-memory chrome.storage, so these exercise the

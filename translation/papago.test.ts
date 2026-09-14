@@ -29,7 +29,7 @@ describe('PapagoProvider', () => {
     const fetchMock = mockFetch(ok('item'));
     await translate();
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.headers['Content-Type']).toMatch(/x-www-form-urlencoded/);
     expect(Object.fromEntries(new URLSearchParams(init.body as string))).toEqual({
       source: 'ko',
@@ -42,7 +42,7 @@ describe('PapagoProvider', () => {
     const fetchMock = mockFetch(ok('item'));
     await translate();
 
-    const { headers } = fetchMock.mock.calls[0][1];
+    const { headers } = fetchMock.mock.calls[0]![1];
     expect(headers['X-NCP-APIGW-API-KEY-ID']).toBe('id-1');
     expect(headers['X-NCP-APIGW-API-KEY']).toBe('secret-1');
   });
