@@ -35,6 +35,9 @@ import type { TranslationProvider } from '../translation/types';
 export default defineBackground(() => {
   console.log('[korean-anki-miner] background started');
 
+  // The toolbar button has no popup, so clicks land here.
+  browser.action.onClicked.addListener(() => browser.runtime.openOptionsPage());
+
   // ALL network lives here. The content script and options page message us; they
   // hold no secrets and make no cross-origin calls. Returning a promise sends the
   // async reply.

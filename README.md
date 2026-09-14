@@ -91,7 +91,8 @@ For development with hot-reload, use `npm run dev` instead (it builds to the sam
 
 ### Configure
 
-Open the extension's **Options** page (right-click the icon → _Options_) and fill in:
+Open the extension's **Options** page — click the toolbar button, or use the link in the word
+popup on a video — and fill in:
 
 1. **Translation:** pick a provider — **DeepL** (paste the API key; Free keys end in `:fx` and are routed to the free endpoint automatically) or **Papago** (Client ID + Secret) — and the language pair (default `Korean → English`).
 2. **Anki:** start Anki with the AnkiConnect add-on installed, then pick your **deck**, **note

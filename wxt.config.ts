@@ -28,6 +28,14 @@ export default defineConfig({
     name: 'Korean Anki Miner',
     description: 'Mine Korean vocabulary from YouTube subtitles into Anki.',
     permissions: ['storage'],
+    // No popup — the whole UI lives in the YouTube overlay. The button exists so
+    // the add-on is pinnable at all (browsers grey out entries with no action)
+    // and gives Options a home outside about:addons. Clicking it opens Options.
+    action: {
+      default_title: 'Korean Anki Miner — options',
+      // Firefox otherwise buries new buttons in the overflow menu.
+      ...(browser === 'firefox' && { default_area: 'navbar' }),
+    },
     host_permissions: [
       ...API_HOSTS,
       // Firefox match patterns cannot carry a port, and it silently drops any
