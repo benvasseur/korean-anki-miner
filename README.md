@@ -88,19 +88,16 @@ For development with hot-reload, use `npm run dev` instead (it builds to the sam
 
 1. Open `chrome://extensions` and enable **Developer mode** (top-right).
 2. Click **Load unpacked** and select the unzipped folder (Option A) or `.output/chrome-mv3` (Option B).
-3. Note the extension's **ID** shown on the card — you'll need it for AnkiConnect.
 
 ### Configure
 
 Open the extension's **Options** page (right-click the icon → _Options_) and fill in:
 
 1. **Translation:** pick a provider — **DeepL** (paste the API key; Free keys end in `:fx` and are routed to the free endpoint automatically) or **Papago** (Client ID + Secret) — and the language pair (default `Korean → English`).
-2. **Anki:** let Anki talk to the extension by adding its origin to AnkiConnect's CORS allowlist —
-   Anki → _Tools → Add-ons → AnkiConnect → Config_:
-   ```json
-   { "webCorsOriginList": ["http://localhost", "chrome-extension://<your-extension-id>"] }
-   ```
-   Restart Anki, then pick your **deck**, **note type**, and map the **Front / Back / Extra** fields.
+2. **Anki:** start Anki with the AnkiConnect add-on installed, then pick your **deck**, **note
+   type**, and map the **Front / Back / Extra** fields. No CORS setup is needed: calls are made
+   from the background with host permissions, so they carry no `Origin` header and AnkiConnect
+   allows them (and its default `http://localhost` entry allows extension origins anyway).
 3. **Enrichment — AI** _(optional):_ pick a provider (Claude or Mistral), then its API key and the model to use.
 
 ### Use it

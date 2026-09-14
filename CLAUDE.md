@@ -89,9 +89,11 @@ Two API paths with different latency/cost profiles:
   param; stripping them returns an empty body and the token can't be synthesized. Avoid unless DOM
   reading proves insufficient (then intercept the player's own request rather than building the URL).
 - **AnkiConnect** — local HTTP server at `http://127.0.0.1:8765`, up only while Anki desktop runs (needs
-  a clear error state). Call it FROM the service worker (grant `host_permissions` for the endpoint), not
-  the content script. Set AnkiConnect's `webCorsOriginList` to include the extension origin
-  (`chrome-extension://<id>`). Actions used: `deckNames`, `modelNames`, `modelFieldNames`, `addNote`.
+  a clear error state). Call it FROM the background (grant `host_permissions` for the endpoint), not
+  the content script. That placement is also what makes `webCorsOriginList` config unnecessary: a
+  background fetch covered by host permissions bypasses CORS and sends no `Origin`, which AnkiConnect
+  allows outright — and its default `http://localhost` entry allows `chrome-extension://` /
+  `moz-extension://` origins regardless. Actions used: `deckNames`, `modelNames`, `modelFieldNames`, `addNote`.
 - **Korean segmentation** — clicking a space-delimited token yields stem+particle (학교에서 = 학교 + 에서),
   not the lemma. v1: prefill the surface token into the editable preview so the user can fix it to the
   dictionary form before saving; Claude can resolve the lemma on demand (Enrich). Do not block v1 on a

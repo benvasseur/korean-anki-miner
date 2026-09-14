@@ -18,12 +18,11 @@ async function invoke<T>(action: string, params: Record<string, unknown> = {}): 
       body: JSON.stringify({ action, version: ANKI_CONNECT_VERSION, params }),
     });
   } catch {
-    // A blocked cross-origin request fails the same way an unreachable server
-    // does, so name both causes rather than sending the user to check Anki.
+    // An ungranted host permission fails the same way an unreachable server
+    // does, and on Firefox that is the likelier cause of the two.
     throw new Error(
       'Anki is not reachable. Check that Anki is running with the AnkiConnect add-on, ' +
-        "that its webCorsOriginList includes this extension's origin, and that network " +
-        'access is granted in Options.',
+        'and that network access is granted in Options.',
     );
   }
 

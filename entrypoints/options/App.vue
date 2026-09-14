@@ -29,11 +29,6 @@ import SecretField from './SecretField.vue';
 // list already differs per browser, since Firefox cannot express a port.
 const REQUIRED_ORIGINS = browser.runtime.getManifest().host_permissions ?? [];
 
-// moz-extension://<uuid> on Firefox, chrome-extension://<id> on Chrome — the
-// exact Origin string AnkiConnect matches against its allowlist. Firefox mints
-// the UUID per profile, so it can only be read at runtime, never documented.
-const extensionOrigin = browser.runtime.getURL('/').replace(/\/$/, '');
-
 const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; required: boolean }> = [
   { key: 'front', label: 'Front — Korean word', required: true },
   { key: 'back', label: 'Back — translation', required: true },
@@ -325,10 +320,6 @@ async function save() {
         <section>
           <h2>Anki</h2>
           <p class="hint">Cards are saved through the AnkiConnect add-on — Anki must be running.</p>
-          <p class="hint">
-            Add this origin to AnkiConnect's <code>webCorsOriginList</code>, then restart Anki:
-            <code class="origin">{{ extensionOrigin }}</code>
-          </p>
 
           <p v-if="anki.state === 'loading'" class="hint">Connecting to Anki…</p>
 
@@ -573,16 +564,6 @@ button:hover {
   margin: 0 0 10px;
   line-height: 1.5;
   color: #7a5b1c;
-}
-
-.origin {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(127, 137, 160, 0.16);
-  font-size: 12px;
-  user-select: all;
 }
 
 @media (prefers-color-scheme: dark) {
