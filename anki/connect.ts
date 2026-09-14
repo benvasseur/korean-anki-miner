@@ -1,5 +1,5 @@
-// AnkiConnect adapter. Runs in the service worker (which holds host_permissions
-// for 127.0.0.1:8765); the content script and options page reach it via messages.
+// AnkiConnect adapter. Runs in the background (which holds the loopback host
+// permission); the content script and options page reach it via messages.
 // AnkiConnect is a local HTTP server, up only while Anki desktop is running.
 const ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
 const ANKI_CONNECT_VERSION = 6;
@@ -18,7 +18,13 @@ async function invoke<T>(action: string, params: Record<string, unknown> = {}): 
       body: JSON.stringify({ action, version: ANKI_CONNECT_VERSION, params }),
     });
   } catch {
-    throw new Error('Anki is not reachable. Is Anki running with the AnkiConnect add-on?');
+    // A blocked cross-origin request fails the same way an unreachable server
+    // does, so name both causes rather than sending the user to check Anki.
+    throw new Error(
+      'Anki is not reachable. Check that Anki is running with the AnkiConnect add-on, ' +
+        "that its webCorsOriginList includes this extension's origin, and that network " +
+        'access is granted in Options.',
+    );
   }
 
   const data = (await response.json()) as AnkiConnectResponse<T>;

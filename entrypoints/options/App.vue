@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { browser } from 'wxt/browser';
 import {
   CLAUDE_MODELS,
   ENRICHMENT_PROVIDERS,
@@ -23,6 +24,15 @@ import {
 } from '../../config';
 import { fetchAnkiFields, fetchAnkiResources } from '../../anki/messages';
 import SecretField from './SecretField.vue';
+
+// The manifest is the source of truth for what has to be granted: the origin
+// list already differs per browser, since Firefox cannot express a port.
+const REQUIRED_ORIGINS = browser.runtime.getManifest().host_permissions ?? [];
+
+// moz-extension://<uuid> on Firefox, chrome-extension://<id> on Chrome — the
+// exact Origin string AnkiConnect matches against its allowlist. Firefox mints
+// the UUID per profile, so it can only be read at runtime, never documented.
+const extensionOrigin = browser.runtime.getURL('/').replace(/\/$/, '');
 
 const FIELD_ROLES: ReadonlyArray<{ key: keyof AnkiFieldMap; label: string; required: boolean }> = [
   { key: 'front', label: 'Front — Korean word', required: true },
@@ -51,6 +61,7 @@ const form = reactive({
 const loaded = ref(false);
 const status = ref<'idle' | 'saved'>('idle');
 const validationError = ref('');
+const needsPermissions = ref(false);
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
 const anki = reactive<{
@@ -91,8 +102,23 @@ onMounted(async () => {
   form.model = ac.model;
   form.fields = { ...ac.fields };
   loaded.value = true;
+  await checkPermissions();
   await loadResources();
 });
+
+// Firefox treats MV3 host permissions as optional, so a fresh install has none
+// and every API call fails on CORS until the user grants them. Chrome grants
+// them at install, where this check just passes and the banner never renders.
+async function checkPermissions() {
+  needsPermissions.value = !(await browser.permissions.contains({ origins: REQUIRED_ORIGINS }));
+}
+
+async function grantPermissions() {
+  // Must run straight off the click — Firefox requires a user gesture.
+  if (!(await browser.permissions.request({ origins: REQUIRED_ORIGINS }))) return;
+  needsPermissions.value = false;
+  await loadResources();
+}
 
 async function loadResources() {
   anki.state = 'loading';
@@ -164,6 +190,14 @@ async function save() {
   <main class="page">
     <h1>Korean Anki Miner</h1>
     <p class="subtitle">Options</p>
+
+    <div v-if="needsPermissions" class="permissions">
+      <p>
+        This extension needs access to the translation, AI and AnkiConnect hosts before it can look
+        anything up or save a card.
+      </p>
+      <button type="button" @click="grantPermissions">Grant access</button>
+    </div>
 
     <form class="card" @submit.prevent="save">
       <fieldset :disabled="!loaded">
@@ -291,6 +325,10 @@ async function save() {
         <section>
           <h2>Anki</h2>
           <p class="hint">Cards are saved through the AnkiConnect add-on — Anki must be running.</p>
+          <p class="hint">
+            Add this origin to AnkiConnect's <code>webCorsOriginList</code>, then restart Anki:
+            <code class="origin">{{ extensionOrigin }}</code>
+          </p>
 
           <p v-if="anki.state === 'loading'" class="hint">Connecting to Anki…</p>
 
@@ -522,10 +560,42 @@ button:hover {
   font-weight: 600;
 }
 
+.permissions {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid #f0c36d;
+  border-radius: 8px;
+  background: #fdf6e3;
+  font-size: 13px;
+}
+
+.permissions p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  color: #7a5b1c;
+}
+
+.origin {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(127, 137, 160, 0.16);
+  font-size: 12px;
+  user-select: all;
+}
+
 @media (prefers-color-scheme: dark) {
   .card {
     background: #1d2026;
     border-color: #2c303a;
+  }
+  .permissions {
+    border-color: #6b5520;
+    background: #2a2418;
+  }
+  .permissions p {
+    color: #e8cf9a;
   }
   .field input,
   .field select {

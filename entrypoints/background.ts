@@ -33,7 +33,7 @@ import { PapagoProvider } from '../translation/papago';
 import type { TranslationProvider } from '../translation/types';
 
 export default defineBackground(() => {
-  console.log('[korean-anki-miner] background service worker started');
+  console.log('[korean-anki-miner] background started');
 
   // ALL network lives here. The content script and options page message us; they
   // hold no secrets and make no cross-origin calls. Returning a promise sends the
