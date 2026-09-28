@@ -14,6 +14,7 @@
     "build:firefox": "wxt build -b firefox --mv3",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox --mv3",
+    "sign:firefox": "npm run build:firefox && web-ext sign --source-dir .output/firefox-mv3 --artifacts-dir .output --channel unlisted",
     "compile": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
