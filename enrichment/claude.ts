@@ -1,22 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  CARD_SCHEMA,
-  CARD_TOOL_DESCRIPTION,
-  CARD_TOOL_NAME,
-  SYSTEM_PROMPT,
-  buildUserMessage,
-} from './prompt';
+import { CARD_SCHEMA, SYSTEM_PROMPT, buildUserMessage } from './prompt';
 import type { EnrichmentProvider, EnrichmentRequest, EnrichmentResult } from './types';
 
-// A forced tool call gives us guaranteed, fully-typed structured output without
-// relying on the (newer) output_config.format param being typed in this SDK.
-const CARD_TOOL: Anthropic.Tool = {
-  name: CARD_TOOL_NAME,
-  description: CARD_TOOL_DESCRIPTION,
-  input_schema: CARD_SCHEMA,
+// Structured outputs, not the forced tool call this used to make: Sonnet 5.5
+// rejects `tool_choice: {type: 'tool'}` outright, and the tool only ever existed
+// to get JSON back, which is exactly what output_config.format is for.
+const CARD_FORMAT: Anthropic.JSONOutputFormat = {
+  type: 'json_schema',
+  schema: CARD_SCHEMA,
 };
 
-/** Claude (Anthropic) enrichment adapter. Runs in the service worker. */
+// Haiku 4.5 errors on the effort parameter, so it is sent per model rather than
+// always. `low` suits a single short card: the model thinks briefly or not at
+// all. Raise to 'medium' if dictionary forms or glosses come back weak.
+const EFFORT: Readonly<Record<string, Anthropic.OutputConfig['effort']>> = {
+  'claude-sonnet-5-5': 'low',
+};
+
+/** Claude (Anthropic) enrichment adapter. Runs in the background. */
 export class ClaudeProvider implements EnrichmentProvider {
   constructor(
     private readonly apiKey: string,
@@ -28,15 +29,14 @@ export class ClaudeProvider implements EnrichmentProvider {
     // dangerous-direct-browser-access header and host_permissions bypass CORS.
     const client = new Anthropic({ apiKey: this.apiKey, dangerouslyAllowBrowser: true });
 
+    const effort = EFFORT[this.model];
     let response: Anthropic.Message;
     try {
       response = await client.messages.create({
         model: this.model,
         max_tokens: 2048,
-        thinking: { type: 'disabled' },
         system: SYSTEM_PROMPT,
-        tools: [CARD_TOOL],
-        tool_choice: { type: 'tool', name: CARD_TOOL.name },
+        output_config: { format: CARD_FORMAT, ...(effort ? { effort } : {}) },
         messages: [{ role: 'user', content: buildUserMessage(request) }],
       });
     } catch (error) {
@@ -53,13 +53,23 @@ export class ClaudeProvider implements EnrichmentProvider {
       });
     }
 
-    const toolUse = response.content.find(
-      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
-    );
-    const card = toolUse?.input as Partial<EnrichmentResult> | undefined;
+    // Found by type, never by position: with thinking on, the reply can open
+    // with a thinking block.
+    const text = response.content.find(
+      (block): block is Anthropic.TextBlock => block.type === 'text',
+    )?.text;
+    const card = text ? safeParse(text) : undefined;
     if (!card?.front || !card.back || !card.extra) {
       throw new Error('Claude returned an unexpected response.');
     }
     return { front: card.front, back: card.back, extra: card.extra };
+  }
+}
+
+function safeParse(text: string): Partial<EnrichmentResult> | undefined {
+  try {
+    return JSON.parse(text) as Partial<EnrichmentResult>;
+  } catch {
+    return undefined;
   }
 }

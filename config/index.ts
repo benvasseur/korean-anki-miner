@@ -83,7 +83,7 @@ export const claudeModel = storage.defineItem<string>('sync:claudeModel', {
 /** Models offered for Claude enrichment, cheapest first. */
 export const CLAUDE_MODELS: ReadonlyArray<{ id: string; label: string }> = [
   { id: 'claude-haiku-4-5', label: 'Haiku 4.5 — cheapest' },
-  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — higher quality' },
+  { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5 — higher quality' },
 ];
 
 export const mistralApiKey = storage.defineItem<string>('local:mistralApiKey', {

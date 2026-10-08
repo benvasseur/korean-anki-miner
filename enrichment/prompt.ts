@@ -33,6 +33,8 @@ export const CARD_SCHEMA = {
     },
   },
   required: ['front', 'back', 'extra'],
+  // Structured outputs require this on every object in the schema.
+  additionalProperties: false,
 };
 
 export const SYSTEM_PROMPT = `You write Anki vocabulary cards for an English-speaking learner of Korean.
