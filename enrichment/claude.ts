@@ -10,10 +10,12 @@ const CARD_FORMAT: Anthropic.JSONOutputFormat = {
   schema: CARD_SCHEMA,
 };
 
-// Haiku 4.5 errors on the effort parameter, so it is sent per model rather than
-// always. `low` suits a single short card: the model thinks briefly or not at
-// all. Raise to 'medium' if dictionary forms or glosses come back weak.
+// Sent per model, not always: both current models take effort, but a model ID
+// left in storage from an older build (Haiku 4.5) errors on the parameter.
+// `low` suits a single short card — the documented choice when moving a route
+// off no-thinking. Raise to 'medium' if dictionary forms or glosses come back weak.
 const EFFORT: Readonly<Record<string, Anthropic.OutputConfig['effort']>> = {
+  'claude-haiku-5-5': 'low',
   'claude-sonnet-5-5': 'low',
 };
 
@@ -34,7 +36,9 @@ export class ClaudeProvider implements EnrichmentProvider {
     try {
       response = await client.messages.create({
         model: this.model,
-        max_tokens: 2048,
+        // Thinking counts against this, and the current tokenizer makes the same
+        // text ~30% more tokens, so leave room for both ahead of the card itself.
+        max_tokens: 8192,
         system: SYSTEM_PROMPT,
         output_config: { format: CARD_FORMAT, ...(effort ? { effort } : {}) },
         messages: [{ role: 'user', content: buildUserMessage(request) }],
@@ -51,6 +55,12 @@ export class ClaudeProvider implements EnrichmentProvider {
       throw new Error(error instanceof Error ? error.message : 'Enrichment failed.', {
         cause: error,
       });
+    }
+
+    // Both models run safety classifiers and neither has a server-side fallback,
+    // so a decline arrives as a normal 200 response.
+    if (response.stop_reason === 'refusal') {
+      throw new Error('Claude declined to answer for this word.');
     }
 
     // Found by type, never by position: with thinking on, the reply can open

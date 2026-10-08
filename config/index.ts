@@ -77,12 +77,12 @@ export const claudeApiKey = storage.defineItem<string>('local:claudeApiKey', {
 
 // Default to the cheapest model — enrichment is a templated formatting task.
 export const claudeModel = storage.defineItem<string>('sync:claudeModel', {
-  fallback: 'claude-haiku-4-5',
+  fallback: 'claude-haiku-5-5',
 });
 
 /** Models offered for Claude enrichment, cheapest first. */
 export const CLAUDE_MODELS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: 'claude-haiku-4-5', label: 'Haiku 4.5 — cheapest' },
+  { id: 'claude-haiku-5-5', label: 'Haiku 5.5 — cheapest' },
   { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5 — higher quality' },
 ];
 
